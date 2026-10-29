@@ -3,24 +3,27 @@ using GLib;
 
 /*
  * ComposeDeck — GTK4/Vala app that lists Podman Compose projects
- * under ~/Apps/ as if they were native applications.
+ * under ~/Apps/ with a running/stopped indicator.
  *
  * Name: ComposeDeck
  * Build:
  *   valac --pkg gtk4 --pkg gio-2.0 composedeck.vala -o composedeck
  */
 
+const string COMPOSE_BIN = "/app/bin/docker-compose";
 const string APPS_SUBDIR = "Apps";
 
 class ComposeApp : Object {
-    public ComposeApp (string name, string path, string compose_file) {
+    public ComposeApp (string name, string path, string compose_file, bool running) {
         this.name = name;
         this.path = path;
         this.compose_file = compose_file;
+        this.running = running;
     }
     public string name { get; set; }
     public string path { get; set; }
     public string compose_file { get; set; }
+    public bool running { get; set; }
 }
 
 class ComposeDeckWindow : Gtk.Window {
@@ -79,8 +82,6 @@ class ComposeDeckWindow : Gtk.Window {
         info_label.set_xalign (0);
         details.append (info_label);
 
-        details.append (new Gtk.Separator (Gtk.Orientation.VERTICAL));
-
         paned.set_end_child (details);
 
         // Header bar
@@ -95,6 +96,43 @@ class ComposeDeckWindow : Gtk.Window {
 
         // Discover apps on startup
         populate_apps ();
+    }
+
+    /* ---------- Compose environment ---------- */
+
+    private static void setup_compose_environment () {
+        string? docker_host = Environment.get_variable ("DOCKER_HOST");
+        if (docker_host == null || docker_host == "") {
+            string? runtime = Environment.get_variable ("XDG_RUNTIME_DIR");
+            if (runtime != null) {
+                string sock = runtime + "/podman/podman.sock";
+                if (GLib.File.new_for_path (sock).query_exists ())
+                    docker_host = "unix://" + sock;
+            }
+        }
+
+        if (docker_host != null)
+            Environment.set_variable ("DOCKER_HOST", docker_host, true);
+    }
+
+    /* ---------- Running detection ---------- */
+
+    private static bool is_app_running (string path) {
+        setup_compose_environment ();
+        string? stdout_str = null;
+        string? stderr_str = null;
+        int wait_status = -1;
+        bool ok = false;
+        try {
+            ok = GLib.Process.spawn_sync (path,
+                new string[] { COMPOSE_BIN, "ps", "--status", "running" },
+                null, 0, null, out stdout_str, out stderr_str, out wait_status);
+        } catch (Error err) {
+            return false;
+        }
+        if (!ok) return false;
+        string output = stdout_str ?? "";
+        return output.contains ("Up") || output.contains ("running");
     }
 
     /* ---------- App discovery ---------- */
@@ -128,8 +166,11 @@ class ComposeDeckWindow : Gtk.Window {
                 compose_file = "compose.yaml";
             else if (yml.query_exists ())
                 compose_file = "docker-compose.yml";
-            if (compose_file != null)
-                found.append (new ComposeApp (entry, path, compose_file));
+            if (compose_file == null)
+                continue;
+
+            bool running = is_app_running (path);
+            found.append (new ComposeApp (entry, path, compose_file, running));
         }
 
         found.sort ((a, b) => {
@@ -142,6 +183,13 @@ class ComposeDeckWindow : Gtk.Window {
         foreach (ComposeApp app in found)
             result = result + app;
         return result;
+    }
+
+    private string status_markup (bool running) {
+        if (running)
+            return "<span foreground='#4CAF50' size='large'>&#9679;</span>";
+        else
+            return "<span foreground='#F44336' size='large'>&#9679;</span>";
     }
 
     private void populate_apps () {
@@ -184,8 +232,10 @@ class ComposeDeckWindow : Gtk.Window {
         string home = Environment.get_home_dir ();
         if (short_path.has_prefix (home + "/"))
             short_path = "~" + short_path.substring (home.length);
-        info_label.set_markup ("<b>%s</b>\n%s <i>(%s)</i>".printf (
-            app.name, short_path, app.compose_file));
+        string status = status_markup (app.running);
+        string status_text = app.running ? "Active" : "Stopped";
+        info_label.set_markup ("<b>%s</b>\n%s\n%s %s".printf (
+            app.name, short_path, status, status_text));
     }
 }
 

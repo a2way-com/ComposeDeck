@@ -1,0 +1,46 @@
+# Compiled binaries
+composedeck
+docker-compose
+*.exe
+*.out
+
+# Flatpak build outputs
+build-dir/
+repo/
+.flatpak-builder/
+*.flatpak
+*.flatpakref
+
+# Vala/GTK build artifacts
+*.c
+*.h
+Makefile
+*.o
+*.lo
+*.la
+autom4te.cache/
+config.log
+config.status
+configure
+libtool
+ltmain.sh
+m4/
+aclocal.m4
+compile
+config.guess
+config.sub
+install-sh
+missing
+stamp-h1
+stamp-h2
+.install_log
+
+# Editors / OS
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

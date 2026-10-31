@@ -1,24 +1,18 @@
 using Adw;
+using GLib;
 
 /*
- * ComposeDeck — application entry point.
+ * ComposeDeck — application entry point and logic coordinator.
  *
- * UI is defined in .ui files (GtkBuilder XML) embedded in a GResource,
- * and loaded via [GtkTemplate].
- *
- * App id (RNDS): com.a2way.ComposeDeck
- * Executable:  composedeck
- *
- * Build:
- *   glib-compile-resources --sourcedir=. --generate-source --target=compose-deck.c compose-deck.gresource.xml
- *   valac --pkg gtk4 --pkg gio-2.0 --pkg libadwaita-1 --gresources=compose-deck.gresource.xml \
- *     ComposeDeck.vala Window.vala AppRow.vala OverviewRow.vala Sidebar.vala OverviewPage.vala AppDetailsPage.vala -o composedeck
+ * This file owns the application lifecycle and polling timer (logic).
+ * All UI manipulation is delegated to Window (view).
  */
 
 const string APP_ID = "com.a2way.ComposeDeck";
 
 class ComposeDeckApplication : Adw.Application {
     private Window? window;
+    private uint poll_timeout;
 
     public ComposeDeckApplication () {
         Object (application_id: APP_ID);
@@ -27,6 +21,14 @@ class ComposeDeckApplication : Adw.Application {
     protected override void activate () {
         if (window == null) {
             window = new Window (this);
+            window.populate_apps ();
+            window.select_overview ();
+
+            /* Poll running status every 10 seconds */
+            poll_timeout = GLib.Timeout.add_seconds (10, () => {
+                window.poll_status ();
+                return true;
+            });
         }
         window.present ();
     }

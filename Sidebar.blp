@@ -1,0 +1,46 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $Sidebar: Gtk.Box {
+  orientation: vertical;
+
+  Adw.HeaderBar {
+    show-end-title-buttons: false;
+    css-classes: ["flat"];
+    title-widget: Adw.WindowTitle {
+      title: "ComposeDeck";
+    };
+
+    [end]
+    Gtk.MenuButton menu_button {
+      icon-name: "open-menu-symbolic";
+      valign: center;
+      css-classes: ["flat"];
+      margin-start: 2;
+      margin-end: 2;
+      has-frame: false;
+      focus-on-click: false;
+      can-focus: true;
+    }
+  }
+
+  Gtk.SearchEntry search {
+    placeholder-text: "Search";
+    margin-start: 12;
+    margin-end: 12;
+    margin-top: 12;
+    margin-bottom: 6;
+    hexpand: true;
+  }
+
+  Gtk.ScrolledWindow sidebar_scrolled {
+    hscrollbar-policy: never;
+    vscrollbar-policy: automatic;
+    vexpand: true;
+
+    child: Gtk.ListBox list_box {
+      selection-mode: single;
+      activate-on-single-click: true;
+    };
+  }
+}

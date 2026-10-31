@@ -9,9 +9,10 @@ repo/
 # Vala generated C files
 *.vala.c
 
-# Auto-generated GResource files
+# Auto-generated GResource / Blueprint-compiled files
 compose-deck.gresource.xml
 compose-deck.c
+*.ui
 
 # Built binaries
 composedeck

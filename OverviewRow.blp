@@ -1,0 +1,28 @@
+using Gtk 4.0;
+
+template $OverviewRow: Gtk.ListBoxRow {
+  Gtk.Box overview_row_box {
+    orientation: horizontal;
+    spacing: 12;
+    margin-start: 14;
+    margin-end: 14;
+    margin-top: 8;
+    margin-bottom: 8;
+    hexpand: true;
+    valign: center;
+
+    Gtk.Image overview_row_icon {
+      icon-name: "applications-other-symbolic";
+      pixel-size: 20;
+      valign: center;
+    }
+
+    Gtk.Label overview_row_name {
+      label: "Overview";
+      halign: start;
+      hexpand: true;
+      valign: center;
+      xalign: 0;
+    }
+  }
+}

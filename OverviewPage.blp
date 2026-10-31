@@ -1,0 +1,61 @@
+using Gtk 4.0;
+
+template $OverviewPage: Gtk.Box {
+  orientation: vertical;
+  spacing: 12;
+  halign: center;
+  valign: center;
+  margin-top: 36;
+  margin-bottom: 36;
+  margin-start: 48;
+  margin-end: 48;
+
+  Gtk.Box overview_stats_box {
+    orientation: vertical;
+    spacing: 6;
+    halign: center;
+    valign: center;
+
+    Gtk.Box overview_total_row {
+      orientation: horizontal;
+      spacing: 6;
+      halign: center;
+
+      Gtk.Label {
+        label: "Total apps:";
+      }
+
+      Gtk.Label total_value {
+        use-markup: true;
+      }
+    }
+
+    Gtk.Box overview_running_row {
+      orientation: horizontal;
+      spacing: 6;
+      halign: center;
+
+      Gtk.Label {
+        label: "Running:";
+      }
+
+      Gtk.Label running_value {
+        use-markup: true;
+      }
+    }
+
+    Gtk.Box overview_stopped_row {
+      orientation: horizontal;
+      spacing: 6;
+      halign: center;
+
+      Gtk.Label {
+        label: "Stopped:";
+      }
+
+      Gtk.Label stopped_value {
+        use-markup: true;
+      }
+    }
+  }
+}

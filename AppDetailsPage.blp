@@ -1,0 +1,29 @@
+using Gtk 4.0;
+
+template $AppDetailsPage: Gtk.Box {
+  orientation: vertical;
+  spacing: 12;
+  halign: center;
+  valign: center;
+  margin-top: 36;
+  margin-bottom: 36;
+  margin-start: 48;
+  margin-end: 48;
+  visible: false;
+
+  Gtk.Image {
+    icon-name: "applications-other-symbolic";
+    pixel-size: 64;
+    halign: center;
+  }
+
+  Gtk.Label path_label {
+    halign: center;
+    css-classes: ["dim-label"];
+  }
+
+  Gtk.Label status_label {
+    halign: center;
+    use-markup: true;
+  }
+}

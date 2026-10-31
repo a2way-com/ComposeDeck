@@ -1,0 +1,26 @@
+using Gtk 4.0;
+
+template $AppRow: Gtk.ListBoxRow {
+  Gtk.Box app_row_box {
+    orientation: horizontal;
+    spacing: 12;
+    margin-start: 14;
+    margin-end: 14;
+    margin-top: 8;
+    margin-bottom: 8;
+    hexpand: true;
+    valign: center;
+
+    Gtk.Label indicator {
+      valign: center;
+      use-markup: true;
+    }
+
+    Gtk.Label name_label {
+      halign: start;
+      hexpand: true;
+      valign: center;
+      xalign: 0;
+    }
+  }
+}

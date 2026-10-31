@@ -3,63 +3,91 @@ using Adw;
 using GLib;
 
 /*
- * Window — main window for ComposeDeck.
- *
- * UI is defined in Window.ui (GtkBuilder XML, loaded via GResource).
+ * Window — main window view for ComposeDeck.
  */
 
 const string APP_NAME = "ComposeDeck";
 const string VERSION = "0.1.0";
-const string APPS_SUBDIR = "Apps";
+
 [GtkTemplate (ui = "/com/a2way/ComposeDeck/Window.ui")]
 class Window : Adw.ApplicationWindow {
     [GtkChild] private unowned Adw.NavigationSplitView split_view;
-    [GtkChild] private unowned Adw.NavigationPage sidebar_page;
+    [GtkChild] private unowned Gtk.Box sidebar_box;
     [GtkChild] private unowned Gtk.Box content_box;
-    [GtkChild] private unowned Gtk.Button quit_button;
 
     private Sidebar sidebar;
-    private OverviewPage overview_page;
-    private AppDetailsPage app_details_page;
-
+    private ContentArea content_area;
     private OverviewRow overview_row;
-    private AppRow? active_row;
-    private uint refresh_timeout;
+    public AppRow? active_row { get; private set; }
 
     public Window (Adw.Application app) {
-
         set_application (app);
 
-
-        /* Create UI components */
+        /* Create partial views */
         sidebar = new Sidebar ();
-        sidebar_page.set_child (sidebar);
+        content_area = new ContentArea ();
+        if (sidebar_box != null) sidebar_box.append (sidebar);
+        if (content_box != null) content_box.append (content_area);
 
-        overview_page = new OverviewPage ();
-        app_details_page = new AppDetailsPage ();
-
-        content_box.append (overview_page);
-        content_box.append (app_details_page);
+        /* No vertical separator between sidebar and content (GNOME Settings has none in expanded mode) */
+        sidebar.add_css_class ("sidebar");
+        try {
+            var css = new Gtk.CssProvider ();
+            css.load_from_string ("navigation-split-view > separator, .navigation-split-view > separator, adw-navigation-split-view > separator { min-width: 0; min-height: 0; opacity: 0; margin: 0; padding: 0; border: none; } headerbar { border: none; box-shadow: none; } .sidebar { border-right: none; box-shadow: none; }");
+            Gtk.StyleContext.add_provider_for_display (Gdk.Display.get_default (), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
+        } catch (Error e) {
+        }
 
         /* Connect signals */
         sidebar.search.changed.connect (on_search_changed);
         sidebar.list_box.row_activated.connect (on_sidebar_row_activated);
 
+        /* Hamburger menu */
+        if (sidebar.menu_button != null) {
+            var menu = new GLib.Menu ();
+            menu.append ("About", "win.about");
+            menu.append ("Quit", "win.quit");
+            sidebar.menu_button.set_menu_model (menu);
+
+            var about_action = new GLib.SimpleAction ("about", null);
+            about_action.activate.connect ((action, param) => on_about_clicked ());
+            add_action (about_action);
+
+            var quit_action = new GLib.SimpleAction ("quit", null);
+            quit_action.activate.connect ((action, param) => on_quit_clicked ());
+            add_action (quit_action);
+
+            sidebar.menu_button.notify["active"].connect (() => {
+                if (sidebar.menu_button.active) {
+                    GLib.Idle.add (() => {
+                        set_focus (null);
+                        return GLib.Source.REMOVE;
+                    });
+                }
+            });
+        }
+
         /* Load apps into sidebar */
-        populate_apps ();
-
-        /* Poll running status every 10 seconds */
-        refresh_timeout = GLib.Timeout.add_seconds (10, () => {
-            poll_status ();
-            return true;
+        GLib.Idle.add (() => {
+            populate_apps ();
+            select_overview ();
+            return GLib.Source.REMOVE;
         });
-
-        /* Select Overview by default */
-        sidebar.list_box.select_row (overview_row);
-        show_overview_page ();
     }
 
-    /* ---------- Signal handlers ---------- */
+    private void on_quit_clicked () {
+        close ();
+    }
+
+    private void on_about_clicked () {
+        var about = new Adw.AboutDialog ();
+        about.application_name = "ComposeDeck";
+        about.application_icon = "com.a2way.ComposeDeck";
+        about.developer_name = "a2way";
+        about.version = "0.1.0";
+        about.comments = "Manage Compose applications under ~/Apps/.";
+        about.present (this);
+    }
 
     private void on_search_changed (Gtk.Editable editable) {
         var entry = (Gtk.SearchEntry) editable;
@@ -94,210 +122,56 @@ class Window : Adw.ApplicationWindow {
         show_app_details (app_row);
     }
 
-    [GtkCallback]
-    private void on_quit_clicked () {
-        close ();
-    }
-
-    /* ---------- Sidebar population ---------- */
-
-    private void populate_apps () {
+    public void populate_apps () {
         sidebar.remove_all_rows ();
 
         overview_row = new OverviewRow ();
         sidebar.list_box.append (overview_row);
 
-        string home = Environment.get_home_dir ();
-        string apps_dir = home + "/" + APPS_SUBDIR;
-
-        var rows = new List<AppRow> ();
-
-        try {
-            var handle = GLib.Dir.open (apps_dir);
-            string? entry;
-            while ((entry = handle.read_name ()) != null) {
-                if (entry == null || entry.has_prefix ("."))
-                    continue;
-                string path = apps_dir + "/" + entry;
-                var file = GLib.File.new_for_path (path);
-                if (file.query_file_type (GLib.FileQueryInfoFlags.NOFOLLOW_SYMLINKS) != GLib.FileType.DIRECTORY) {
-                    continue;
-                }
-                var yaml = GLib.File.new_for_path (path + "/compose.yaml");
-                var yml = GLib.File.new_for_path (path + "/docker-compose.yaml");
-                if (!yaml.query_exists () && !yml.query_exists ()) {
-                    continue;
-                }
-                bool running = is_app_running (path);
-                try {
-                    rows.append (new AppRow (path, entry, running));
-                } catch (Error e) {
-                    continue;
-                }
-            }
-        } catch (Error e) {
-            // ~/Apps/ may not exist yet
+        var apps = ComposeService.discover_apps ();
+        foreach (ComposeApp app in apps) {
+            sidebar.list_box.append (new AppRow (app.path, app.name, app.running));
         }
-
-        rows.sort ((a, b) => {
-            if (a.name < b.name) return -1;
-            if (a.name > b.name) return 1;
-            return 0;
-        });
-
-        foreach (AppRow row in rows)
-            sidebar.list_box.append (row);
     }
 
-    /* ---------- Live polling ---------- */
-
-    private void poll_status () {
+    public void poll_status () {
         var child = sidebar.list_box.get_first_child ();
         while (child != null) {
             if (child is AppRow) {
                 var app_row = (AppRow) child;
-                app_row.update_status (is_app_running (app_row.path));
+                app_row.update_status (ComposeService.is_running (app_row.path));
             }
             child = child.get_next_sibling ();
         }
 
         if (active_row != null) {
-            app_details_page.show_app (active_row.name, active_row.path,
-                                       is_app_running (active_row.path));
+            content_area.show_app (active_row.name, active_row.path,
+                                       ComposeService.is_running (active_row.path));
         }
 
         int total = 0;
         int running_count = 0;
-        compute_app_stats (out total, out running_count);
-        overview_page.update_stats (total, running_count);
+        ComposeService.compute_stats (out total, out running_count);
+        content_area.overview.update_stats (total, running_count);
     }
 
-    /* ---------- Page switching ---------- */
-
-    private void show_overview_page () {
-        overview_page.show ();
-        app_details_page.hide ();
+    public void show_overview_page () {
+        content_area.show_overview ();
         active_row = null;
 
         int total = 0;
         int running_count = 0;
-        compute_app_stats (out total, out running_count);
-        overview_page.update_stats (total, running_count);
+        ComposeService.compute_stats (out total, out running_count);
+        content_area.overview.update_stats (total, running_count);
     }
 
-    private void show_app_details (AppRow row) {
-        overview_page.hide ();
-        app_details_page.show_app (row.name, row.path, row.is_running ());
+    public void show_app_details (AppRow row) {
+        content_area.show_app (row.name, row.path, row.is_running ());
         active_row = row;
     }
 
-    /* ---------- Compose environment ---------- */
-
-    private static void setup_compose_environment () {
-        string? docker_host = Environment.get_variable ("DOCKER_HOST");
-        if (docker_host == null || docker_host == "") {
-            string? runtime = Environment.get_variable ("XDG_RUNTIME_DIR");
-            if (runtime != null) {
-                string sock = runtime + "/podman/podman.sock";
-                if (GLib.File.new_for_path (sock).query_exists ())
-                    docker_host = "unix://" + sock;
-            }
-        }
-
-        if (docker_host != null)
-            Environment.set_variable ("DOCKER_HOST", docker_host, true);
-    }
-
-    /* ---------- Running detection ---------- */
-
-    private static bool is_app_running (string path) {
-        string project_name = GLib.Path.get_basename (path).down ();
-
-        string? runtime = Environment.get_variable ("XDG_RUNTIME_DIR");
-        if (runtime == null) return false;
-        string sock = runtime + "/podman/podman.sock";
-        if (!GLib.File.new_for_path (sock).query_exists ()) return false;
-
-        try {
-            var socket = new GLib.Socket (GLib.SocketFamily.UNIX, GLib.SocketType.STREAM, GLib.SocketProtocol.DEFAULT);
-            var addr = new GLib.UnixSocketAddress (sock);
-            socket.connect (addr, null);
-            socket.set_timeout (5);
-
-            string filter = "{\"label\":[\"com.docker.compose.project=" + project_name + "\"]}";
-            string encoded = GLib.Uri.escape_string (filter);
-            string request = "GET /containers/json?all=true&filters=" + encoded + " HTTP/1.0\r\nHost: localhost\r\n\r\n";
-            var req_bytes = request.data;
-            socket.send (req_bytes, null);
-
-            var buf = new uint8[65536];
-            var response = new GLib.ByteArray ();
-            ssize_t n;
-            while ((n = socket.receive (buf, null)) > 0) {
-                response.append (buf[:n]);
-            }
-            response.append (new uint8[] { 0 });
-            socket.close ();
-
-            string resp = (string) response.data;
-            int body_start = resp.index_of ("\r\n\r\n");
-            if (body_start < 0) return false;
-            string body = resp.substring (body_start + 4);
-    
-            var parser = new Json.Parser ();
-            parser.load_from_data (body, -1);
-            var root = parser.get_root ();
-            if (root == null) return false;
-            var array = root.get_array ();
-            if (array == null) return false;
-
-            bool any_running = false;
-            for (int i = 0; i < array.get_length (); i++) {
-                var obj = array.get_object_element (i);
-                if (obj != null) {
-                    string state = obj.get_string_member ("State");
-                    if (state == "running") any_running = true;
-                }
-            }
-            return any_running;
-        } catch (Error e) {
-            return false;
-        }
-    }
-
-    /* ---------- Stats ---------- */
-
-    private void compute_app_stats (out int total, out int running_count) {
-        total = 0;
-        running_count = 0;
-
-        string home = Environment.get_home_dir ();
-        string apps_dir = home + "/" + APPS_SUBDIR;
-
-        try {
-            var handle = GLib.Dir.open (apps_dir);
-            string? entry;
-            while ((entry = handle.read_name ()) != null) {
-                if (entry != null && entry.has_prefix ("."))
-                    continue;
-                string path = apps_dir + "/" + entry;
-                var file = GLib.File.new_for_path (path);
-                if (file.query_file_type (GLib.FileQueryInfoFlags.NOFOLLOW_SYMLINKS)
-                    != GLib.FileType.DIRECTORY)
-                    continue;
-
-                var yaml = GLib.File.new_for_path (path + "/compose.yaml");
-                var yml = GLib.File.new_for_path (path + "/docker-compose.yaml");
-                if (!yaml.query_exists () && !yml.query_exists ())
-                    continue;
-
-                total++;
-                if (is_app_running (path)) {
-                    running_count++;
-                }
-            }
-        } catch (Error e) {
-            // ~/Apps/ may not exist yet
-        }
+    public void select_overview () {
+        sidebar.list_box.select_row (overview_row);
+        show_overview_page ();
     }
 }

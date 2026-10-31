@@ -1,0 +1,33 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $Window: Adw.ApplicationWindow {
+  default-width: 1000;
+  default-height: 700;
+  title: "ComposeDeck";
+
+  content: Adw.ToastOverlay {
+    child: Adw.NavigationSplitView split_view {
+      min-sidebar-width: 240;
+      max-sidebar-width: 320;
+
+      sidebar: Adw.NavigationPage sidebar_page {
+        title: "ComposeDeck";
+        child: Gtk.Box sidebar_box {
+          orientation: vertical;
+          hexpand: true;
+          vexpand: true;
+        };
+      };
+
+      content: Adw.NavigationPage content_page {
+        title: "Content";
+        child: Gtk.Box content_box {
+          orientation: vertical;
+          hexpand: true;
+          vexpand: true;
+        };
+      };
+    };
+  };
+}

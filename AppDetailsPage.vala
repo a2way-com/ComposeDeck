@@ -7,7 +7,6 @@ using Gtk;
 
 [GtkTemplate (ui = "/com/a2way/ComposeDeck/AppDetailsPage.ui")]
 class AppDetailsPage : Gtk.Box {
-    [GtkChild] private unowned Gtk.Label name_label;
     [GtkChild] private unowned Gtk.Label path_label;
     [GtkChild] private unowned Gtk.Label status_label;
 
@@ -17,7 +16,6 @@ class AppDetailsPage : Gtk.Box {
     public void show_app (string name, string path, bool running) {
         set_visible (true);
 
-        name_label.set_markup ("<b>%s</b>".printf (name));
         path_label.set_text (path);
 
         string dot_color = running ? "#4CAF50" : "#F44336";

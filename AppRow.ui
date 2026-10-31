@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk+" version="4.0"/>
+
+  <template class="AppRow" parent="GtkListBoxRow">
+    <child>
+      <object class="GtkBox" id="app_row_box">
+        <property name="orientation">horizontal</property>
+        <property name="spacing">12</property>
+        <property name="margin-start">14</property>
+        <property name="margin-end">14</property>
+        <property name="margin-top">8</property>
+        <property name="margin-bottom">8</property>
+        <property name="hexpand">true</property>
+        <property name="valign">center</property>
+
+        <child>
+          <object class="GtkLabel" id="indicator">
+            <property name="valign">center</property>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkLabel" id="name_label">
+            <property name="halign">start</property>
+            <property name="hexpand">true</property>
+            <property name="valign">center</property>
+            <property name="xalign">0</property>
+          </object>
+        </child>
+
+      </object>
+    </child>
+  </template>
+</interface>

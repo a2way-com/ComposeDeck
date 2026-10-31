@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk+" version="4.0"/>
+
+  <template class="AppDetailsPage" parent="GtkBox">
+    <property name="orientation">vertical</property>
+    <property name="spacing">12</property>
+    <property name="halign">center</property>
+    <property name="valign">center</property>
+    <property name="margin-top">36</property>
+    <property name="margin-bottom">36</property>
+    <property name="margin-start">48</property>
+    <property name="margin-end">48</property>
+    <property name="visible">false</property>
+
+    <child>
+      <object class="GtkImage" id="app-details-icon">
+        <property name="icon-name">applications-other-symbolic</property>
+        <property name="pixel-size">64</property>
+        <property name="halign">center</property>
+      </object>
+    </child>
+
+    <child>
+      <object class="GtkLabel" id="name_label">
+        <property name="use-markup">true</property>
+        <property name="halign">center</property>
+      </object>
+    </child>
+
+    <child>
+      <object class="GtkLabel" id="path_label">
+        <property name="halign">center</property>
+        <property name="css-classes">dim-label</property>
+      </object>
+    </child>
+
+    <child>
+      <object class="GtkLabel" id="status_label">
+        <property name="halign">center</property>
+      </object>
+    </child>
+
+  </template>
+</interface>

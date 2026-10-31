@@ -1,0 +1,21 @@
+# Flatpak build artifacts
+build/
+repo/
+.flatpak-builder/
+
+# Flatpak bundles
+*.flatpak
+
+# Vala generated C files
+*.vala.c
+
+# Auto-generated GResource files
+compose-deck.gresource.xml
+compose-deck.c
+
+# Built binaries
+composedeck
+/bin/
+
+# Docker / podman compose binary (vendored into the flatpak, not tracked)
+docker-compose

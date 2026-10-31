@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk+" version="4.0"/>
+  <requires lib="adwaita" version="1.0"/>
+
+  <template class="Window" parent="AdwApplicationWindow">
+    <property name="title">ComposeDeck</property>
+    <property name="default-width">1000</property>
+    <property name="default-height">700</property>
+
+    <child>
+      <object class="AdwToastOverlay">
+        <child>
+          <object class="AdwToolbarView">
+            <child type="top">
+              <object class="AdwHeaderBar">
+                <property name="title-widget">
+                  <object class="AdwWindowTitle">
+                    <property name="title">ComposeDeck</property>
+                  </object>
+                </property>
+                <child>
+                  <object class="GtkMenuButton">
+                    <property name="icon-name">open-menu-symbolic</property>
+                    <property name="valign">center</property>
+                    <property name="popover">
+                      <object class="GtkPopover">
+                        <child>
+                          <object class="GtkBox">
+                            <property name="orientation">vertical</property>
+                            <child>
+                              <object class="GtkButton" id="quit_button">
+                                <property name="label">Quit</property>
+                                <property name="halign">start</property>
+                                <signal name="clicked" handler="on_quit_clicked"/>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <property name="content">
+              <object class="AdwNavigationSplitView" id="split_view">
+                <property name="min-sidebar-width">240</property>
+                <property name="max-sidebar-width">320</property>
+
+                <property name="sidebar">
+                  <object class="AdwNavigationPage" id="sidebar_page">
+                    <property name="title">Sidebar</property>
+                  </object>
+                </property>
+
+                <property name="content">
+                  <object class="AdwNavigationPage">
+                    <property name="title">Content</property>
+                    <child>
+                      <object class="GtkBox" id="content_box">
+                        <property name="orientation">vertical</property>
+                        <property name="hexpand">true</property>
+                        <property name="vexpand">true</property>
+                      </object>
+                    </child>
+                  </object>
+                </property>
+              </object>
+            </property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

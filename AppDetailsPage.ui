@@ -38,6 +38,7 @@
     <child>
       <object class="GtkLabel" id="status_label">
         <property name="halign">center</property>
+        <property name="use-markup">true</property>
       </object>
     </child>
 

@@ -9,7 +9,7 @@ BINARY       := composedeck
 GRESOURCE_PREFIX := /com/a2way/ComposeDeck
 
 VALAC := valac
-VALAC_FLAGS := --pkg gtk4 --pkg gio-2.0 --pkg libadwaita-1
+VALAC_FLAGS := --pkg gtk4 --pkg gio-2.0 --pkg gio-unix-2.0 --pkg libadwaita-1 --pkg json-glib-1.0
 
 .PHONY: all clean run
 
@@ -49,8 +49,8 @@ flatpak-build: $(GRESOURCE_XML)
 	@flatpak build-init build com.a2way.ComposeDeck org.gnome.Sdk//51 org.gnome.Platform//51 >/dev/null 2>&1
 	@mkdir -p build/files
 	@cp $(VALA_SOURCES) $(UI_FILES) $(GRESOURCE_XML) build/files/
-	@flatpak build build sh -c "glib-compile-resources --sourcedir=/app --generate-source --target=/app/compose-deck.c /app/compose-deck.gresource.xml && mkdir -p /app/bin && valac --pkg gtk4 --pkg gio-2.0 --pkg libadwaita-1 --gresources=/app/compose-deck.gresource.xml --gresourcesdir=/app /app/compose-deck.c /app/*.vala -o /app/bin/composedeck"
-	@flatpak build-finish build --command=composedeck --socket=x11 --socket=wayland --share=ipc --share=network --filesystem=home --filesystem=xdg-run/podman >/dev/null 2>&1
+	@flatpak build build sh -c "mkdir -p /app/bin && glib-compile-resources --sourcedir=/app --generate-source --target=/app/compose-deck.c /app/compose-deck.gresource.xml && valac --pkg gtk4 --pkg gio-2.0 --pkg gio-unix-2.0 --pkg libadwaita-1 --pkg json-glib-1.0 --gresources=/app/compose-deck.gresource.xml --gresourcesdir=/app /app/compose-deck.c /app/*.vala -o /app/bin/composedeck"
+	@flatpak build-finish build --command=composedeck --socket=x11 --socket=wayland --socket=session-bus --share=ipc --share=network --filesystem=home --filesystem=xdg-run/podman --talk-name=org.freedesktop.Flatpak >/dev/null 2>&1
 	@echo "Build complete: build/files/bin/composedeck"
 
 flatpak-run: flatpak-build

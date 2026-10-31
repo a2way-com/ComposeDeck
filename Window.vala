@@ -11,8 +11,6 @@ using GLib;
 const string APP_NAME = "ComposeDeck";
 const string VERSION = "0.1.0";
 const string APPS_SUBDIR = "Apps";
-const string COMPOSE_BIN = "/app/bin/docker-compose";
-
 [GtkTemplate (ui = "/com/a2way/ComposeDeck/Window.ui")]
 class Window : Adw.ApplicationWindow {
     [GtkChild] private unowned Adw.NavigationSplitView split_view;
@@ -29,6 +27,7 @@ class Window : Adw.ApplicationWindow {
     private uint refresh_timeout;
 
     public Window (Adw.Application app) {
+
         set_application (app);
 
 
@@ -117,21 +116,24 @@ class Window : Adw.ApplicationWindow {
             var handle = GLib.Dir.open (apps_dir);
             string? entry;
             while ((entry = handle.read_name ()) != null) {
-                if (entry != null && entry.has_prefix ("."))
+                if (entry == null || entry.has_prefix ("."))
                     continue;
                 string path = apps_dir + "/" + entry;
                 var file = GLib.File.new_for_path (path);
-                if (file.query_file_type (GLib.FileQueryInfoFlags.NOFOLLOW_SYMLINKS)
-                    != GLib.FileType.DIRECTORY)
+                if (file.query_file_type (GLib.FileQueryInfoFlags.NOFOLLOW_SYMLINKS) != GLib.FileType.DIRECTORY) {
                     continue;
-
+                }
                 var yaml = GLib.File.new_for_path (path + "/compose.yaml");
                 var yml = GLib.File.new_for_path (path + "/docker-compose.yaml");
-                if (!yaml.query_exists () && !yml.query_exists ())
+                if (!yaml.query_exists () && !yml.query_exists ()) {
                     continue;
-
+                }
                 bool running = is_app_running (path);
-                rows.append (new AppRow (path, entry, running));
+                try {
+                    rows.append (new AppRow (path, entry, running));
+                } catch (Error e) {
+                    continue;
+                }
             }
         } catch (Error e) {
             // ~/Apps/ may not exist yet
@@ -209,21 +211,58 @@ class Window : Adw.ApplicationWindow {
     /* ---------- Running detection ---------- */
 
     private static bool is_app_running (string path) {
-        setup_compose_environment ();
-        string? stdout_str = null;
-        string? stderr_str = null;
-        int wait_status = -1;
-        bool ok = false;
+        string project_name = GLib.Path.get_basename (path).down ();
+
+        string? runtime = Environment.get_variable ("XDG_RUNTIME_DIR");
+        if (runtime == null) return false;
+        string sock = runtime + "/podman/podman.sock";
+        if (!GLib.File.new_for_path (sock).query_exists ()) return false;
+
         try {
-            ok = GLib.Process.spawn_sync (path,
-                new string[] { COMPOSE_BIN, "ps", "--status", "running" },
-                null, 0, null, out stdout_str, out stderr_str, out wait_status);
-        } catch (Error err) {
+            var socket = new GLib.Socket (GLib.SocketFamily.UNIX, GLib.SocketType.STREAM, GLib.SocketProtocol.DEFAULT);
+            var addr = new GLib.UnixSocketAddress (sock);
+            socket.connect (addr, null);
+            socket.set_timeout (5);
+
+            string filter = "{\"label\":[\"com.docker.compose.project=" + project_name + "\"]}";
+            string encoded = GLib.Uri.escape_string (filter);
+            string request = "GET /containers/json?all=true&filters=" + encoded + " HTTP/1.0\r\nHost: localhost\r\n\r\n";
+            var req_bytes = request.data;
+            socket.send (req_bytes, null);
+
+            var buf = new uint8[65536];
+            var response = new GLib.ByteArray ();
+            ssize_t n;
+            while ((n = socket.receive (buf, null)) > 0) {
+                response.append (buf[:n]);
+            }
+            response.append (new uint8[] { 0 });
+            socket.close ();
+
+            string resp = (string) response.data;
+            int body_start = resp.index_of ("\r\n\r\n");
+            if (body_start < 0) return false;
+            string body = resp.substring (body_start + 4);
+    
+            var parser = new Json.Parser ();
+            parser.load_from_data (body, -1);
+            var root = parser.get_root ();
+            if (root == null) return false;
+            var array = root.get_array ();
+            if (array == null) return false;
+
+            bool any_running = false;
+            for (int i = 0; i < array.get_length (); i++) {
+                var obj = array.get_object_element (i);
+                if (obj != null) {
+                    string state = obj.get_string_member ("State");
+                    if (state == "running") any_running = true;
+                }
+            }
+            return any_running;
+        } catch (Error e) {
             return false;
         }
-        if (!ok) return false;
-        string output = stdout_str ?? "";
-        return output.contains ("Up") || output.contains ("running");
     }
 
     /* ---------- Stats ---------- */

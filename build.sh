@@ -2,6 +2,16 @@
 set -e
 cd /app
 
+# Flatten namespaced source trees into /app so the flat globs below work.
+mkdir -p /app/.srcflat
+for d in src/Logic src/Views; do
+    [ -d "$d" ] || continue
+    cp "$d"/*.vala /app/ 2>/dev/null || true
+done
+if [ -d src/blueprints ]; then
+    cp src/blueprints/*.blp /app/ 2>/dev/null || true
+fi
+
 # Compile Blueprint (.blp) sources into GtkBuilder (.ui) files.
 for f in *.blp; do
     [ -e "$f" ] || continue

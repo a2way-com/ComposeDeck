@@ -12,7 +12,7 @@ template $Sidebar: Gtk.Box {
     };
 
     [end]
-    Gtk.MenuButton menu_button {
+    Gtk.MenuButton menuButton {
       icon-name: "open-menu-symbolic";
       valign: center;
       css-classes: ["flat"];
@@ -33,12 +33,12 @@ template $Sidebar: Gtk.Box {
     hexpand: true;
   }
 
-  Gtk.ScrolledWindow sidebar_scrolled {
+  Gtk.ScrolledWindow sidebarScrolled {
     hscrollbar-policy: never;
     vscrollbar-policy: automatic;
     vexpand: true;
 
-    child: Gtk.ListBox list_box {
+    child: Gtk.ListBox listBox {
       selection-mode: single;
       activate-on-single-click: true;
     };

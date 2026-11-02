@@ -12,40 +12,38 @@ namespace Views {
     [GtkTemplate (ui = "/com/a2way/ComposeDeck/ContentArea.ui")]
     [CCode (cname = "ContentArea")]
     public class ContentArea : Gtk.Box {
-        [GtkChild] public unowned Gtk.Box content_box;
-        [GtkChild] private unowned Adw.WindowTitle content_title;
+        [GtkChild] public unowned Gtk.Box contentBox;
+        [GtkChild] private unowned Adw.WindowTitle contentTitle;
 
-        private OverviewPage overview_page;
-        private AppDetailsPage app_details_page;
+        private OverviewPage overviewPage;
+        private AppDetailsPage appDetailsPage;
 
         public OverviewPage overview {
-            get { return overview_page; }
+            get { return overviewPage; }
         }
 
         public AppDetailsPage details {
-            get { return app_details_page; }
+            get { return appDetailsPage; }
         }
 
         public ContentArea () {
-            overview_page = new OverviewPage ();
-            app_details_page = new AppDetailsPage ();
-            if (content_box != null) {
-                content_box.append (overview_page);
-                content_box.append (app_details_page);
-            }
-            show_overview ();
+            overviewPage = new OverviewPage();
+            appDetailsPage = new AppDetailsPage();
+            contentBox.append(overviewPage);
+            contentBox.append(appDetailsPage);
+            showOverview();
         }
 
-        public void show_overview () {
-            if (overview_page != null) overview_page.show ();
-            if (app_details_page != null) app_details_page.hide ();
-            if (content_title != null) content_title.title = "Overview";
+        public void showOverview () {
+            if (overviewPage != null) overviewPage.show();
+            if (appDetailsPage != null) appDetailsPage.hide();
+            contentTitle.title = "Overview";
         }
 
-        public void show_app (string name, string path, bool running) {
-            if (overview_page != null) overview_page.hide ();
-            if (app_details_page != null) app_details_page.show_app (name, path, running);
-            if (content_title != null) content_title.title = name;
+        public void showApp (string name, string path, bool running) {
+            if (overviewPage != null) overviewPage.hide();
+            if (appDetailsPage != null) appDetailsPage.showApp(name, path, running);
+            contentTitle.title = name;
         }
     }
 }

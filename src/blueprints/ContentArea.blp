@@ -7,12 +7,12 @@ template $ContentArea: Gtk.Box {
   Adw.HeaderBar {
     show-start-title-buttons: false;
     css-classes: ["flat"];
-    title-widget: Adw.WindowTitle content_title {
+    title-widget: Adw.WindowTitle contentTitle {
       title: "ComposeDeck";
     };
   }
 
-  Gtk.Box content_box {
+  Gtk.Box contentBox {
     orientation: vertical;
     hexpand: true;
     vexpand: true;

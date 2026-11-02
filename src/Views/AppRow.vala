@@ -5,7 +5,7 @@ using Logic;
 namespace Views {
     /*
      * AppRow — sidebar row showing an indicator dot + Compose App name.
-     * UI is defined in AppRow.ui (GtkBuilder XML, loaded via GResource).
+     * UI is defined in AppRow.ui(GtkBuilder XML, loaded via GResource).
      */
 
     [GtkTemplate (ui = "/com/a2way/ComposeDeck/AppRow.ui")]
@@ -16,24 +16,24 @@ namespace Views {
         private bool running;
 
         [GtkChild] private unowned Gtk.Label indicator;
-        [GtkChild] private unowned Gtk.Label name_label;
+        [GtkChild] private unowned Gtk.Label nameLabel;
 
         public AppRow (string path, string name, bool running) {
             this.path = path;
             this.name = name;
             this.running = running;
 
-            update_status (running);
-            name_label.set_text (name);
+            updateStatus(running);
+            nameLabel.set_text(name);
         }
 
-        public void update_status (bool running) {
+        public void updateStatus (bool running) {
             this.running = running;
-            string dot_color = running ? "#4CAF50" : "#F44336";
-            indicator.set_markup ("<span foreground='%s' size='large'>●</span>".printf (dot_color));
+            string dotColor = running ? "#4CAF50" : "#F44336";
+            indicator.set_markup("<span foreground='%s' size='large'>●</span>".printf(dotColor));
         }
 
-        public bool is_running () {
+        public bool isRunning () {
             return running;
         }
     }

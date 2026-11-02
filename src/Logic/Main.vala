@@ -7,5 +7,5 @@ using Logic;
  */
 
 int main (string[] args) {
-    return new Logic.Application ().run (args);
+    return new Logic.Application().run(args);
 }

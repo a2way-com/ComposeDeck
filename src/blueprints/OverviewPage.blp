@@ -10,13 +10,13 @@ template $OverviewPage: Gtk.Box {
   margin-start: 48;
   margin-end: 48;
 
-  Gtk.Box overview_stats_box {
+  Gtk.Box overviewStatsBox {
     orientation: vertical;
     spacing: 6;
     halign: center;
     valign: center;
 
-    Gtk.Box overview_total_row {
+    Gtk.Box overviewTotalRow {
       orientation: horizontal;
       spacing: 6;
       halign: center;
@@ -25,12 +25,12 @@ template $OverviewPage: Gtk.Box {
         label: "Total apps:";
       }
 
-      Gtk.Label total_value {
+      Gtk.Label totalValue {
         use-markup: true;
       }
     }
 
-    Gtk.Box overview_running_row {
+    Gtk.Box overviewRunningRow {
       orientation: horizontal;
       spacing: 6;
       halign: center;
@@ -39,12 +39,12 @@ template $OverviewPage: Gtk.Box {
         label: "Running:";
       }
 
-      Gtk.Label running_value {
+      Gtk.Label runningValue {
         use-markup: true;
       }
     }
 
-    Gtk.Box overview_stopped_row {
+    Gtk.Box overviewStoppedRow {
       orientation: horizontal;
       spacing: 6;
       halign: center;
@@ -53,7 +53,7 @@ template $OverviewPage: Gtk.Box {
         label: "Stopped:";
       }
 
-      Gtk.Label stopped_value {
+      Gtk.Label stoppedValue {
         use-markup: true;
       }
     }

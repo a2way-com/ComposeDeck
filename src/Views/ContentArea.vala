@@ -1,12 +1,11 @@
 using Gtk;
 using Adw;
+using GLib;
 using Logic;
 
 namespace Views {
     /*
-     * ContentArea — view partial for the right-hand content pane.
-     * Owns its header (with dynamic title) and the page stack
-     * (Overview / AppDetails).
+     * ContentArea — view partial (right content pane).
      */
 
     [GtkTemplate (ui = "/com/a2way/ComposeDeck/ContentArea.ui")]
@@ -15,35 +14,61 @@ namespace Views {
         [GtkChild] public unowned Gtk.Box contentBox;
         [GtkChild] private unowned Adw.WindowTitle contentTitle;
 
+        private Logic.State state;
+
         private OverviewPage overviewPage;
         private AppDetailsPage appDetailsPage;
 
         public OverviewPage overview {
-            get { return overviewPage; }
+            get { return this.overviewPage; }
         }
 
         public AppDetailsPage details {
-            get { return appDetailsPage; }
+            get { return this.appDetailsPage; }
         }
 
         public ContentArea () {
-            overviewPage = new OverviewPage();
-            appDetailsPage = new AppDetailsPage();
-            contentBox.append(overviewPage);
-            contentBox.append(appDetailsPage);
-            showOverview();
+            this.state = Logic.Application.getState();
+            this.state.changed.connect(this.render);
+            this.overviewPage = new OverviewPage();
+            this.appDetailsPage = new AppDetailsPage();
+            this.contentBox.append(this.overviewPage);
+            this.contentBox.append(this.appDetailsPage);
+            this.render();
+        }
+
+        private void render () {
+            this.overviewPage.updateStats();
+            if (this.state.overviewSelected) {
+                this.showOverview();
+            } else {
+                string path = this.state.selectedPath ?? "";
+                if (path == "") {
+                    this.showOverview();
+                    return;
+                }
+                string name = path;
+                bool run = false;
+                foreach (var app in this.state.apps) {
+                    if (app.path == path) {
+                        name = app.name;
+                        run = app.running;
+                    }
+                }
+                this.showApp(name, path, run);
+            }
         }
 
         public void showOverview () {
-            if (overviewPage != null) overviewPage.show();
-            if (appDetailsPage != null) appDetailsPage.hide();
-            contentTitle.title = "Overview";
+            if (this.overviewPage != null) this.overviewPage.show();
+            if (this.appDetailsPage != null) this.appDetailsPage.hide();
+            this.contentTitle.title = "Overview";
         }
 
         public void showApp (string name, string path, bool running) {
-            if (overviewPage != null) overviewPage.hide();
-            if (appDetailsPage != null) appDetailsPage.showApp(name, path, running);
-            contentTitle.title = name;
+            if (this.overviewPage != null) this.overviewPage.hide();
+            if (this.appDetailsPage != null) this.appDetailsPage.showApp(name, path, running);
+            this.contentTitle.title = name;
         }
     }
 }

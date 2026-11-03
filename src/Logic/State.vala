@@ -5,7 +5,7 @@ namespace Logic {
         public GLib.List<ComposeApp> apps;
 
         public State () {
-            apps = new GLib.List<ComposeApp> ();
+            this.apps = new GLib.List<ComposeApp> ();
         }
         public int total { get; private set; default = 0; }
         public int runningCount { get; private set; default = 0; }
@@ -15,34 +15,34 @@ namespace Logic {
         public signal void changed ();
 
         public void setAppList (owned GLib.List<ComposeApp> a) {
-            apps = (owned) a;
-            recompute();
-            changed();
+            this.apps = (owned) a;
+            this.recompute();
+            this.changed();
         }
 
         private void recompute () {
             int totalApps = 0;
             int runningApps = 0;
-            foreach (var app in apps) {
+            foreach (var app in this.apps) {
                 totalApps++;
                 if (app.running) {
                     runningApps++;
                 }
             }
-            total = totalApps;
-            runningCount = runningApps;
+            this.total = totalApps;
+            this.runningCount = runningApps;
         }
 
         public void selectOverview () {
-            overviewSelected = true;
-            selectedPath = null;
-            changed();
+            this.overviewSelected = true;
+            this.selectedPath = null;
+            this.changed();
         }
 
         public void selectApp (string path) {
-            overviewSelected = false;
-            selectedPath = path;
-            changed();
+            this.overviewSelected = false;
+            this.selectedPath = path;
+            this.changed();
         }
     }
 }

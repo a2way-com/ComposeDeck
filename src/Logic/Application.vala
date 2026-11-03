@@ -15,16 +15,19 @@ namespace Logic {
 
         protected override void activate () {
             instance = this;
-            if (window == null) {
-                state = new State();
-                window = new Views.Window(this);
-                ComposeDeck.start(state);
+            if (this.window == null) {
+                this.state = new State();
+                this.window = new Views.Window(this);
+                ComposeDeck.start(this.state);
             }
-            window.present();
+            this.window.present();
         }
 
-        public static State? getState () {
-            return instance != null ? instance.state : null;
+        public static State getState () {
+            if (instance == null || instance.state == null) {
+                GLib.error ("Application state is not initialized");
+            }
+            return instance.state;
         }
     }
 }

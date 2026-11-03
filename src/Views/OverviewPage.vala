@@ -1,5 +1,4 @@
 using Gtk;
-using Logic;
 
 namespace Views {
     /*
@@ -14,23 +13,28 @@ namespace Views {
         [GtkChild] private unowned Gtk.Label runningValue;
         [GtkChild] private unowned Gtk.Label stoppedValue;
 
+        private Logic.State state;
+
         public OverviewPage () {
+            this.state = Logic.Application.getState();
         }
 
-        public void updateStats (int total, int runningCount) {
+        public void updateStats () {
+            int total = this.state.total;
+            int runningCount = this.state.runningCount;
             int stoppedCount = total - runningCount;
 
-            totalValue.set_text(total.to_string());
-            runningValue.set_markup("<span foreground='#4CAF50'><b>%d</b></span>".printf(runningCount));
-            stoppedValue.set_markup("<span foreground='#F44336'><b>%d</b></span>".printf(stoppedCount));
+            this.totalValue.set_text(total.to_string());
+            this.runningValue.set_markup("<span foreground='#4CAF50'><b>%d</b></span>".printf(runningCount));
+            this.stoppedValue.set_markup("<span foreground='#F44336'><b>%d</b></span>".printf(stoppedCount));
         }
 
         public void show () {
-            set_visible(true);
+            this.set_visible(true);
         }
 
         public void hide () {
-            set_visible(false);
+            this.set_visible(false);
         }
     }
 }

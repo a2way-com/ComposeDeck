@@ -1,5 +1,4 @@
 using Gtk;
-using Logic;
 
 namespace Views {
     /*

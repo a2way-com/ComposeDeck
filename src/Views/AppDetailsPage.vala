@@ -1,5 +1,4 @@
 using Gtk;
-using Logic;
 
 namespace Views {
     /*
@@ -17,18 +16,18 @@ namespace Views {
         }
 
         public void showApp (string name, string path, bool running) {
-            set_visible(true);
+            this.set_visible(true);
 
-            pathLabel.set_text(path);
+            this.pathLabel.set_text(path);
 
             string dotColor = running ? "#4CAF50" : "#F44336";
             string statusText = running ? "Running" : "Stopped";
-            statusLabel.set_markup("<span foreground='%s' size='large'>●</span> %s"
+            this.statusLabel.set_markup("<span foreground='%s' size='large'>●</span> %s"
                                      .printf(dotColor, statusText));
         }
 
         public void hide () {
-            set_visible(false);
+            this.set_visible(false);
         }
     }
 }

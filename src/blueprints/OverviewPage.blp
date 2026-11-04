@@ -10,13 +10,13 @@ template $OverviewPage: Gtk.Box {
   margin-start: 48;
   margin-end: 48;
 
-  Gtk.Box overviewStatsBox {
+  Gtk.Box {
     orientation: vertical;
     spacing: 6;
     halign: center;
     valign: center;
 
-    Gtk.Box overviewTotalRow {
+    Gtk.Box {
       orientation: horizontal;
       spacing: 6;
       halign: center;
@@ -30,7 +30,7 @@ template $OverviewPage: Gtk.Box {
       }
     }
 
-    Gtk.Box overviewRunningRow {
+    Gtk.Box {
       orientation: horizontal;
       spacing: 6;
       halign: center;
@@ -44,7 +44,7 @@ template $OverviewPage: Gtk.Box {
       }
     }
 
-    Gtk.Box overviewStoppedRow {
+    Gtk.Box {
       orientation: horizontal;
       spacing: 6;
       halign: center;

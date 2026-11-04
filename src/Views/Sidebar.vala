@@ -20,14 +20,13 @@ namespace Views {
         public Sidebar () {
             this.state = Logic.Application.getState();
 
-            this.search.changed.connect(this.onSearchChanged);
+            this.search.search_changed.connect(this.onSearchChanged);
             this.listBox.row_activated.connect(this.onRowActivated);
             this.state.changed.connect(this.render);
         }
 
-        private void onSearchChanged (Gtk.Editable editable) {
-            var entry = (Gtk.SearchEntry) editable;
-            string term = entry.get_text().down();
+        private void onSearchChanged () {
+            string term = this.search.get_text().down();
             this.listBox.set_filter_func((row) => {
                 if (row is OverviewRow) return true;
                 var appRow = row as AppRow;
@@ -64,23 +63,16 @@ namespace Views {
             var overviewRow = new OverviewRow();
             this.listBox.append(overviewRow);
 
-            foreach (var app in this.state.apps) {
-                this.listBox.append(new AppRow(app));
-            }
-
             if (this.state.overviewSelected) {
                 this.listBox.select_row(overviewRow);
-            } else if (this.state.selectedPath != null) {
-                var child = this.listBox.get_first_child();
-                while (child != null) {
-                    if (child is AppRow) {
-                        var appRow = (AppRow) child;
-                        if (appRow.app.path == this.state.selectedPath) {
-                            this.listBox.select_row(appRow);
-                            break;
-                        }
-                    }
-                    child = child.get_next_sibling();
+            }
+
+            foreach (var app in this.state.apps) {
+                var appRow = new AppRow(app);
+                this.listBox.append(appRow);
+
+                if (this.state.selectedPath == app.path) {
+                    this.listBox.select_row(appRow);
                 }
             }
         }

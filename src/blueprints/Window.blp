@@ -7,11 +7,11 @@ template $Window: Adw.ApplicationWindow {
   title: "ComposeDeck";
 
   content: Adw.ToastOverlay {
-    child: Adw.NavigationSplitView splitView {
+    child: Adw.NavigationSplitView {
       min-sidebar-width: 240;
       max-sidebar-width: 320;
 
-      sidebar: Adw.NavigationPage sidebarPage {
+      sidebar: Adw.NavigationPage {
         title: "ComposeDeck";
         child: Gtk.Box sidebarBox {
           orientation: vertical;
@@ -20,7 +20,7 @@ template $Window: Adw.ApplicationWindow {
         };
       };
 
-      content: Adw.NavigationPage contentPage {
+      content: Adw.NavigationPage {
         title: "Content";
         child: Gtk.Box contentBox {
           orientation: vertical;

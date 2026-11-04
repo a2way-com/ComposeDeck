@@ -64,7 +64,8 @@ flatpak-build: $(BLP_FILES)
 	@mkdir -p build/files
 	@cp $(VALA_LOGIC) $(VALA_VIEWS) $(BLP_FILES) build.sh build/files/
 	@flatpak build build sh -c "sh /app/build.sh"
-	@flatpak build-finish build --command=composedeck --socket=x11 --socket=wayland --share=ipc --share=network --filesystem=home --filesystem=xdg-run/podman >/dev/null 2>&1
+	@args=$$(python3 -c 'import json; print(" ".join(json.load(open("com.a2way.ComposeDeck.json"))["finish-args"]))'); \
+	flatpak build-finish build --command=composedeck $$args
 	@echo "Build complete: build/files/bin/composedeck"
 
 flatpak-run: flatpak-build

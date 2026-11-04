@@ -8,13 +8,72 @@ namespace Logic {
      */
 
     public class ComposeService {
+        private static int64 lastActivation = 0;
+
+        private static bool canConnect (string sock) {
+            if (!GLib.File.new_for_path(sock).query_exists()) return false;
+            try {
+                var probe = new GLib.Socket(GLib.SocketFamily.UNIX, GLib.SocketType.STREAM, GLib.SocketProtocol.DEFAULT);
+                probe.connect(new GLib.UnixSocketAddress(sock), null);
+                probe.close();
+                return true;
+            } catch (Error e) {
+                // Listening socket not accepting yet; treat as not ready.
+                return false;
+            }
+        }
+
+        private static void startService () {
+            try {
+                var proxy = new GLib.DBusProxy.for_bus_sync(GLib.BusType.SESSION,
+                    GLib.DBusProxyFlags.NONE, null,
+                    "org.freedesktop.systemd1",
+                    "/org/freedesktop/systemd1",
+                    "org.freedesktop.systemd1.Manager", null);
+                if (proxy != null) {
+                    proxy.call_sync("StartUnit",
+                        new GLib.Variant("(ss)", "podman.service", "replace"),
+                        GLib.DBusCallFlags.NONE, 1000, null);
+                }
+            } catch (Error e) {
+                // systemd unreachable; ignore and retry on the next poll.
+            }
+            ComposeService.lastActivation = GLib.get_monotonic_time();
+        }
+
+        /*
+         * Makes sure the Podman API is reachable. On a cold boot nothing
+         * runs podman, so this starts the systemd unit when needed. Failed
+         * activation attempts are throttled to once per 30s so a broken
+         * podman can't turn every poll into a unit-start storm.
+         */
+        public static bool ensureService () {
+            string? runtime = Environment.get_variable("XDG_RUNTIME_DIR");
+            if (runtime == null) return false;
+            string sock = runtime + "/podman/podman.sock";
+
+            if (ComposeService.canConnect(sock)) return true;
+
+            int64 now = GLib.get_monotonic_time();
+            if (now - ComposeService.lastActivation > 30 * 1000 * 1000) {
+                GLib.debug("podman not reachable, activating podman.service");
+                ComposeService.startService();
+                for (int i = 0; i < 10; i++) {
+                    if (ComposeService.canConnect(sock)) return true;
+                    GLib.Thread.usleep(100 * 1000);
+                }
+            }
+            return false;
+        }
+
         public static bool isRunning (string path) {
+            if (!ComposeService.ensureService()) return false;
+
             string projectName = GLib.Path.get_basename(path).down();
 
             string? runtime = Environment.get_variable("XDG_RUNTIME_DIR");
             if (runtime == null) return false;
             string sock = runtime + "/podman/podman.sock";
-            if (!GLib.File.new_for_path(sock).query_exists()) return false;
 
             try {
                 var socket = new GLib.Socket(GLib.SocketFamily.UNIX, GLib.SocketType.STREAM, GLib.SocketProtocol.DEFAULT);

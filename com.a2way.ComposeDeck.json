@@ -5,14 +5,12 @@
   "sdk": "org.gnome.Sdk",
   "command": "composedeck",
   "finish-args": [
-    "--share=network",
     "--socket=wayland",
     "--socket=x11",
-    "--socket=session-bus",
     "--share=ipc",
     "--filesystem=home",
-    "--filesystem=xdg-run/podman",
-    "--talk-name=org.freedesktop.Flatpak"
+    "--filesystem=xdg-run/podman:create",
+    "--talk-name=org.freedesktop.systemd1"
   ],
   "cleanup": [
     "/include",

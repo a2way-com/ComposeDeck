@@ -15,11 +15,10 @@ namespace Logic {
         public const string DEVELOPER_NAME = "a2way";
         public const string APPS_SUBDIR = "Apps";
 
-        private static State? state;
+        private static State state;
 
         public static void start (State s) {
             state = s;
-            if (state == null) return;
 
             state.selectOverview();
             discoverApps();
@@ -67,7 +66,7 @@ namespace Logic {
                 if (a.name > b.name) return 1;
                 return 0;
             });
-            if (state != null) state.setAppList((owned) apps);
+            state.setAppList((owned) apps);
         }
 
         public static void computeStats (List<ComposeApp> apps, out int total, out int runningCount) {

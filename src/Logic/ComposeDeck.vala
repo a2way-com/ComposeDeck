@@ -16,7 +16,7 @@ namespace Logic {
         public static void start (State state) {
             ComposeDeck.state = state;
 
-            ComposeDeck.state.selectOverview();
+            ComposeDeck.state.selectedApp = null;
             discoverApps();
 
             Timeout.add_seconds(10, () => {
@@ -58,7 +58,16 @@ namespace Logic {
                 if (a.name > b.name) return 1;
                 return 0;
             });
-            ComposeDeck.state.setAppList((owned) apps);
+            string? selectedPath = (ComposeDeck.state.selectedApp != null) ? ComposeDeck.state.selectedApp.path : null;
+            ComposeDeck.state.apps = (owned) apps;
+            if (selectedPath != null) {
+                ComposeApp? found = null;
+                foreach (var app in ComposeDeck.state.apps) {
+                    if (app.path == selectedPath) { found = app; break; }
+                }
+                ComposeDeck.state.selectedApp = found;
+            }
+            ComposeDeck.state.changed();
         }
 
 

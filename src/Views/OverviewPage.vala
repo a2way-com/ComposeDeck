@@ -27,8 +27,12 @@ namespace Views {
         }
 
         public void updateStats () {
-            int total = this.state.total;
-            int runningCount = this.state.runningCount;
+            int total = 0;
+            int runningCount = 0;
+            foreach (var app in this.state.apps) {
+                total++;
+                if (app.running) runningCount++;
+            }
             int stoppedCount = total - runningCount;
 
             this.totalValue.set_text(total.to_string());

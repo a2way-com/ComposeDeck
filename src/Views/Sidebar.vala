@@ -39,12 +39,14 @@ namespace Views {
 
         private void onRowActivated (Gtk.ListBox box, Gtk.ListBoxRow row) {
             if (row is OverviewRow) {
-                this.state.selectOverview();
+                this.state.selectedApp = null;
+                this.state.changed();
                 return;
             }
             var appRow = row as AppRow;
             if (appRow != null) {
-                this.state.selectApp(appRow.app);
+                this.state.selectedApp = appRow.app;
+                this.state.changed();
             }
         }
 

@@ -30,7 +30,9 @@ namespace Logic {
             });
         }
 
-        /* ---- Pure business logic ---- */
+        /* ----
+         * Pure business logic
+         */
 
         public static List<ComposeApp> discoverApps () {
             var apps = new List<ComposeApp> ();
@@ -82,7 +84,9 @@ namespace Logic {
             }
         }
 
-        /* ---- UI orchestration triggered by views ---- */
+        /* ----
+         * UI orchestration triggered by views
+         */
 
         public static void selectOverview (State state) {
             if (state != null) state.selectOverview();

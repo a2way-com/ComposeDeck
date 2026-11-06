@@ -21,11 +21,11 @@ namespace Logic {
             state = s;
             if (state == null) return;
 
-            state.setAppList(discoverApps ());
             state.selectOverview();
+            discoverApps();
             // timer
             Timeout.add_seconds(10, () => {
-                state.setAppList(discover ()); // running flags refreshed
+                discoverApps(); // running flags refreshed
                 return true;
             });
         }
@@ -34,7 +34,7 @@ namespace Logic {
          * Pure business logic
          */
 
-        public static List<ComposeApp> discoverApps () {
+        public static void discoverApps () {
             var apps = new List<ComposeApp> ();
             string home = Environment.get_home_dir();
             string appsDir = home + "/" + APPS_SUBDIR;
@@ -67,11 +67,7 @@ namespace Logic {
                 if (a.name > b.name) return 1;
                 return 0;
             });
-            return apps;
-        }
-
-        private static List<ComposeApp> discover () {
-            return discoverApps ();
+            if (state != null) state.setAppList((owned) apps);
         }
 
         public static void computeStats (List<ComposeApp> apps, out int total, out int runningCount) {

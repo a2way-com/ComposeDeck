@@ -8,6 +8,7 @@
     "--socket=wayland",
     "--socket=x11",
     "--share=ipc",
+    "--device=dri",
     "--filesystem=home",
     "--filesystem=xdg-run/podman:create",
     "--talk-name=org.freedesktop.systemd1"

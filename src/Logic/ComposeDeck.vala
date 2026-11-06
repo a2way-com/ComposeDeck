@@ -4,10 +4,6 @@ using GLib;
 using Views;
 
 namespace Logic {
-    /*
-     * ComposeDeck — business logic + orchestration, operating views through State.
-     */
-
     public class ComposeDeck {
         public const string APP_ID = "com.a2way.ComposeDeck";
         public const string APP_NAME = "ComposeDeck";
@@ -17,21 +13,17 @@ namespace Logic {
 
         private static State state;
 
-        public static void start (State s) {
-            state = s;
+        public static void start (State state) {
+            ComposeDeck.state = state;
 
-            state.selectOverview();
+            ComposeDeck.state.selectOverview();
             discoverApps();
-            // timer
+
             Timeout.add_seconds(10, () => {
-                discoverApps(); // running flags refreshed
+                discoverApps();
                 return true;
             });
         }
-
-        /* ----
-         * Pure business logic
-         */
 
         public static void discoverApps () {
             var apps = new List<ComposeApp> ();
@@ -66,29 +58,9 @@ namespace Logic {
                 if (a.name > b.name) return 1;
                 return 0;
             });
-            state.setAppList((owned) apps);
+            ComposeDeck.state.setAppList((owned) apps);
         }
 
-        public static void computeStats (List<ComposeApp> apps, out int total, out int runningCount) {
-            total = 0;
-            runningCount = 0;
-            if (apps == null) return;
-            foreach (var app in apps) {
-                total++;
-                if (app.running) runningCount++;
-            }
-        }
 
-        /* ----
-         * UI orchestration triggered by views
-         */
-
-        public static void selectOverview (State state) {
-            if (state != null) state.selectOverview();
-        }
-
-        public static void selectApp (State state, AppRow row) {
-            if (state != null && row != null) state.selectApp(row.app);
-        }
     }
 }

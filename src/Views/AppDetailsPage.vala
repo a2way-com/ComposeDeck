@@ -19,23 +19,14 @@ namespace Views {
 
         public AppDetailsPage () {
             this.state = Logic.Application.getState();
-            this.state.changed.connect(this.refresh);
-            this.refresh();
+            this.state.changed.connect(this.render);
+            this.render();
         }
 
-        private void refresh () {
+        private void render () {
             var selected = this.state.selectedApp;
             if (selected == null) {
-                this.hide();
-                return;
-            }
-            this.showApp();
-        }
-
-        public void showApp () {
-            var selected = this.state.selectedApp;
-            if (selected == null) {
-                this.hide();
+                this.set_visible(false);
                 return;
             }
             this.set_visible(true);
@@ -44,12 +35,8 @@ namespace Views {
 
             string dotColor = selected.running ? "#4CAF50" : "#F44336";
             string statusText = selected.running ? "Running" : "Stopped";
-            this.statusLabel.set_markup("<span foreground='%s' size='large'>●</span> %s"
-                                      .printf(dotColor, statusText));
-        }
-
-        public void hide () {
-            this.set_visible(false);
+            string markup = "<span foreground='%s' size='large'>●</span> %s".printf(dotColor, statusText);
+            this.statusLabel.set_markup(markup);
         }
     }
 }

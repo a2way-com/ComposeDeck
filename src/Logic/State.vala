@@ -6,17 +6,31 @@ namespace Logic {
 
         public State () {
             this.apps = new GLib.List<ComposeApp> ();
+            this.selectedApp = null;
         }
         public int total { get; private set; default = 0; }
         public int runningCount { get; private set; default = 0; }
-        public bool overviewSelected { get; private set; default = true; }
-        public string? selectedPath { get; private set; default = null; }
+        public ComposeApp? selectedApp;
+        public bool overviewSelected { get { return this.selectedApp == null; } }
 
         public signal void changed ();
 
         public void setAppList (owned GLib.List<ComposeApp> a) {
+            string? selectedPath = (this.selectedApp != null) ? this.selectedApp.path : null;
             this.apps = (owned) a;
             this.recompute();
+
+            if (selectedPath != null) {
+                ComposeApp? found = null;
+                foreach (var app in this.apps) {
+                    if (app.path == selectedPath) {
+                        found = app;
+                        break;
+                    }
+                }
+                this.selectedApp = found;
+            }
+
             this.changed();
         }
 
@@ -34,14 +48,12 @@ namespace Logic {
         }
 
         public void selectOverview () {
-            this.overviewSelected = true;
-            this.selectedPath = null;
+            this.selectedApp = null;
             this.changed();
         }
 
-        public void selectApp (string path) {
-            this.overviewSelected = false;
-            this.selectedPath = path;
+        public void selectApp (ComposeApp app) {
+            this.selectedApp = app;
             this.changed();
         }
     }

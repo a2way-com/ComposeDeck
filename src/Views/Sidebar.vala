@@ -44,7 +44,7 @@ namespace Views {
             }
             var appRow = row as AppRow;
             if (appRow != null) {
-                this.state.selectApp(appRow.app.path);
+                this.state.selectApp(appRow.app);
             }
         }
 
@@ -71,7 +71,7 @@ namespace Views {
                 var appRow = new AppRow(app);
                 this.listBox.append(appRow);
 
-                if (this.state.selectedPath == app.path) {
+                if (this.state.selectedApp != null && this.state.selectedApp.path == app.path) {
                     this.listBox.select_row(appRow);
                 }
             }

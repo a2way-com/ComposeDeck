@@ -89,7 +89,7 @@ namespace Logic {
         }
 
         public static void selectApp (State state, AppRow row) {
-            if (state != null && row != null) state.selectApp(row.app.path);
+            if (state != null && row != null) state.selectApp(row.app);
         }
     }
 }

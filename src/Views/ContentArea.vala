@@ -39,36 +39,27 @@ namespace Views {
 
         private void render () {
             this.overviewPage.updateStats();
-            if (this.state.overviewSelected) {
+            var selected = this.state.selectedApp;
+            if (selected == null) {
                 this.showOverview();
-            } else {
-                string path = this.state.selectedPath ?? "";
-                if (path == "") {
-                    this.showOverview();
-                    return;
-                }
-                string name = path;
-                bool run = false;
-                foreach (var app in this.state.apps) {
-                    if (app.path == path) {
-                        name = app.name;
-                        run = app.running;
-                    }
-                }
-                this.showApp(name, path, run);
+                return;
             }
+            this.showApp();
         }
 
         public void showOverview () {
-            if (this.overviewPage != null) this.overviewPage.show();
-            if (this.appDetailsPage != null) this.appDetailsPage.hide();
+            this.overviewPage.show();
+            this.appDetailsPage.hide();
             this.contentTitle.title = "Overview";
         }
 
-        public void showApp (string name, string path, bool running) {
-            if (this.overviewPage != null) this.overviewPage.hide();
-            if (this.appDetailsPage != null) this.appDetailsPage.showApp(name, path, running);
-            this.contentTitle.title = name;
+        public void showApp () {
+            this.overviewPage.hide();
+            this.appDetailsPage.showApp();
+            var selected = this.state.selectedApp;
+            if (selected != null) {
+                this.contentTitle.title = selected.name;
+            }
         }
     }
 }

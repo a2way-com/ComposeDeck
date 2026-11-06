@@ -38,28 +38,14 @@ namespace Views {
         }
 
         private void render () {
-            this.overviewPage.updateStats();
             var selected = this.state.selectedApp;
             if (selected == null) {
-                this.showOverview();
+                this.contentTitle.title = "Overview";
                 return;
             }
-            this.showApp();
+            this.contentTitle.title = selected.name;
         }
 
-        public void showOverview () {
-            this.overviewPage.show();
-            this.appDetailsPage.hide();
-            this.contentTitle.title = "Overview";
-        }
 
-        public void showApp () {
-            this.overviewPage.hide();
-            this.appDetailsPage.showApp();
-            var selected = this.state.selectedApp;
-            if (selected != null) {
-                this.contentTitle.title = selected.name;
-            }
-        }
     }
 }

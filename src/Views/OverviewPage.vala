@@ -3,7 +3,7 @@ using Gtk;
 namespace Views {
     /*
      * OverviewPage — overview page partial: title + stat labels.
-     * UI is defined in OverviewPage.ui(GtkBuilder XML, loaded via GResource).
+     * UI is defined in OverviewPage.ui (GTK blueprint, loaded via GResource).
      */
 
     [GtkTemplate (ui = "/com/a2way/ComposeDeck/OverviewPage.ui")]
@@ -17,6 +17,13 @@ namespace Views {
 
         public OverviewPage () {
             this.state = Logic.Application.getState();
+            this.state.changed.connect(this.render);
+            this.render();
+        }
+
+        private void render () {
+            this.updateStats();
+            this.set_visible(this.state.selectedApp == null);
         }
 
         public void updateStats () {
@@ -27,14 +34,6 @@ namespace Views {
             this.totalValue.set_text(total.to_string());
             this.runningValue.set_markup("<span foreground='#4CAF50'><b>%d</b></span>".printf(runningCount));
             this.stoppedValue.set_markup("<span foreground='#F44336'><b>%d</b></span>".printf(stoppedCount));
-        }
-
-        public void show () {
-            this.set_visible(true);
-        }
-
-        public void hide () {
-            this.set_visible(false);
         }
     }
 }

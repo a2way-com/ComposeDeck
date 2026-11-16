@@ -46,8 +46,11 @@ namespace Logic {
                     if (!yaml.query_exists() && !yml.query_exists())
                         continue;
 
-                    bool running = ComposeService.isRunning(path);
-                    apps.append(new ComposeApp(entry, path, running));
+                    bool anyRunning = false;
+                    var services = ComposeService.listServices(path, out anyRunning);
+                    var app = new ComposeApp(entry, path, anyRunning);
+                    app.services = (owned) services;
+                    apps.append(app);
                 }
             } catch (Error e) {
                 // ~/Apps/ may not exist yet

@@ -10,6 +10,12 @@ namespace Logic {
     public class ComposeService {
         private static int64 lastActivation = 0;
 
+        private static string? socketPath () {
+            string? runtime = Environment.get_variable("XDG_RUNTIME_DIR");
+            if (runtime == null) return null;
+            return runtime + "/podman/podman.sock";
+        }
+
         private static bool canConnect (string sock) {
             if (!GLib.File.new_for_path(sock).query_exists()) return false;
             try {
@@ -48,9 +54,8 @@ namespace Logic {
          * podman can't turn every poll into a unit-start storm.
          */
         public static bool ensureService () {
-            string? runtime = Environment.get_variable("XDG_RUNTIME_DIR");
-            if (runtime == null) return false;
-            string sock = runtime + "/podman/podman.sock";
+            string? sock = ComposeService.socketPath();
+            if (sock == null) return false;
 
             if (ComposeService.canConnect(sock)) return true;
 
@@ -66,14 +71,16 @@ namespace Logic {
             return false;
         }
 
-        public static bool isRunning (string path) {
-            if (!ComposeService.ensureService()) return false;
+        public static GLib.List<AppService> listServices (string path, out bool anyRunning) {
+            anyRunning = false;
+            var result = new GLib.List<AppService>();
+
+            if (!ComposeService.ensureService()) return result;
 
             string projectName = GLib.Path.get_basename(path).down();
 
-            string? runtime = Environment.get_variable("XDG_RUNTIME_DIR");
-            if (runtime == null) return false;
-            string sock = runtime + "/podman/podman.sock";
+            string? sock = ComposeService.socketPath();
+            if (sock == null) return result;
 
             try {
                 var socket = new GLib.Socket(GLib.SocketFamily.UNIX, GLib.SocketType.STREAM, GLib.SocketProtocol.DEFAULT);
@@ -84,8 +91,7 @@ namespace Logic {
                 string filter = "{\"label\":[\"com.docker.compose.project=" + projectName + "\"]}";
                 string encoded = GLib.Uri.escape_string(filter);
                 string request = "GET /containers/json?all=true&filters=" + encoded + " HTTP/1.0\r\nHost: localhost\r\n\r\n";
-                var reqBytes = request.data;
-                socket.send(reqBytes, null);
+                socket.send(request.data, null);
 
                 var buf = new uint8[65536];
                 var response = new GLib.ByteArray();
@@ -98,26 +104,79 @@ namespace Logic {
 
                 string resp = (string) response.data;
                 int bodyStart = resp.index_of("\r\n\r\n");
-                if (bodyStart < 0) return false;
+                if (bodyStart < 0) return result;
                 string body = resp.substring(bodyStart + 4);
 
                 var parser = new Json.Parser();
                 parser.load_from_data(body, -1);
                 var root = parser.get_root();
-                if (root == null) return false;
+                if (root == null) return result;
                 var array = root.get_array();
-                if (array == null) return false;
+                if (array == null) return result;
 
                 for (int i = 0; i < array.get_length(); i++) {
                     var obj = array.get_object_element(i);
                     if (obj == null) continue;
                     string state = obj.get_string_member("State");
-                    if (state == "running") return true;
+                    bool running = (state == "running");
+                    if (running) anyRunning = true;
+
+                    string svcName = projectName;
+                    if (obj.has_member("Labels")) {
+                        var labels = obj.get_object_member("Labels");
+                        if (labels != null && labels.has_member("com.docker.compose.service")) {
+                            svcName = labels.get_string_member("com.docker.compose.service");
+                        }
+                    }
+                    if (svcName == projectName && obj.has_member("Names")) {
+                        var names = obj.get_array_member("Names");
+                        if (names != null && names.get_length() > 0) {
+                            string? nm = names.get_string_element(0);
+                            if (nm != null) {
+                                string bare = nm;
+                                while (bare.has_prefix("/")) bare = bare.substring(1);
+                                if (bare.index_of("/") < 0 && bare != "") svcName = bare;
+                            }
+                        }
+                    }
+
+                    string image = obj.has_member("Image") ? obj.get_string_member("Image") : "";
+
+                    var ports = new GLib.List<AppPort>();
+                    if (obj.has_member("Ports")) {
+                        var portArray = obj.get_array_member("Ports");
+                        if (portArray != null) {
+                            for (int p = 0; p < portArray.get_length(); p++) {
+                                var portObj = portArray.get_object_element(p);
+                                if (portObj == null) continue;
+                                int privatePort = 0;
+                                int publicPort = 0;
+                                string type = "tcp";
+                                if (portObj.has_member("PrivatePort")) privatePort = (int) portObj.get_int_member("PrivatePort");
+                                if (portObj.has_member("PublicPort")) publicPort = (int) portObj.get_int_member("PublicPort");
+                                if (portObj.has_member("Type")) type = portObj.get_string_member("Type");
+                                ports.append(new AppPort(publicPort, privatePort, type));
+                            }
+                        }
+                    }
+
+                    var service = new AppService(svcName, running);
+                    service.image = image;
+                    foreach (var port in ports) {
+                        service.ports.append(port);
+                    }
+                    result.append(service);
                 }
-                return false;
+                return result;
             } catch (Error e) {
-                return false;
+                return result;
             }
+        }
+
+        public static bool isRunning (string path) {
+            bool anyRunning = false;
+            ComposeService.listServices(path, out anyRunning);
+            return anyRunning;
         }
     }
 }

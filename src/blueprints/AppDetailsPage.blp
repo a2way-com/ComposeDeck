@@ -1,29 +1,54 @@
 using Gtk 4.0;
+using Adw 1;
 
 template $AppDetailsPage: Gtk.Box {
   orientation: vertical;
   spacing: 12;
-  halign: center;
-  valign: center;
   margin-top: 36;
   margin-bottom: 36;
   margin-start: 48;
   margin-end: 48;
+  halign: fill;
+  hexpand: true;
+  valign: start;
   visible: false;
 
-  Gtk.Image {
-    icon-name: "applications-other-symbolic";
-    pixel-size: 64;
-    halign: center;
+  Adw.PreferencesGroup {
+
+    Adw.ActionRow pathRow {
+      title: "Path";
+
+      Gtk.Button openButton {
+        label: "Open dir...";
+        hexpand: false;
+        halign: end;
+        valign: center;
+        css-classes: ["flat"];
+        margin-top: 6;
+        margin-bottom: 6;
+      }
+    }
+
+    Adw.ActionRow statusRow {
+      title: "Status";
+      use-markup: true;
+    }
   }
 
-  Gtk.Label pathLabel {
-    halign: center;
-    css-classes: ["dim-label"];
+  Gtk.Label servicesHeading {
+    label: "Services";
+    halign: start;
+    hexpand: true;
+    margin-top: 12;
+    margin-bottom: 6;
+    css-classes: ["title"];
   }
 
-  Gtk.Label statusLabel {
-    halign: center;
-    use-markup: true;
+  Gtk.Box servicesBox {
+    orientation: vertical;
+    spacing: 12;
+    hexpand: true;
+    halign: fill;
+    valign: start;
   }
 }

@@ -33,6 +33,55 @@ template $AppDetailsPage: Gtk.Box {
       title: "Status";
       use-markup: true;
     }
+
+    Adw.ActionRow actionsRow {
+      title: "Actions";
+
+      Gtk.Box {
+        orientation: horizontal;
+        spacing: 6;
+        halign: end;
+        valign: center;
+
+        Gtk.Button startButton {
+          label: "Start";
+          hexpand: false;
+          valign: center;
+          css-classes: ["flat"];
+          margin-top: 6;
+          margin-bottom: 6;
+        }
+
+        Gtk.Button stopButton {
+          label: "Stop";
+          hexpand: false;
+          valign: center;
+          css-classes: ["flat"];
+          margin-top: 6;
+          margin-bottom: 6;
+        }
+
+        Gtk.Button restartButton {
+          label: "Restart";
+          hexpand: false;
+          valign: center;
+          css-classes: ["flat"];
+          margin-top: 6;
+          margin-bottom: 6;
+        }
+
+        Adw.Spinner actionSpinner {
+          hexpand: false;
+          halign: end;
+          valign: center;
+          width-request: 20;
+          height-request: 20;
+          margin-top: 6;
+          margin-bottom: 6;
+          visible: false;
+        }
+      }
+    }
   }
 
   Gtk.Label servicesHeading {

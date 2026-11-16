@@ -25,8 +25,13 @@ namespace Logic {
             });
         }
 
-        public static void discoverApps () {
-            var apps = new List<ComposeApp> ();
+        /*
+         * Blocking discovery: scans ~/Apps/ and queries podman for every app.
+         * Runs off the GTK main thread when called from startApp/stopApp/restartApp;
+         * runs on the main thread when called from start() and the poll timer.
+         */
+        private static void fetchApps (out List<ComposeApp> apps) {
+            apps = new List<ComposeApp> ();
             string home = Environment.get_home_dir();
             string appsDir = home + "/" + APPS_SUBDIR;
 
@@ -61,8 +66,13 @@ namespace Logic {
                 if (a.name > b.name) return 1;
                 return 0;
             });
-            string? selectedPath = (ComposeDeck.state.selectedApp != null) ? ComposeDeck.state.selectedApp.path : null;
+        }
+
+        public static void discoverApps () {
+            List<ComposeApp> apps;
+            fetchApps (out apps);
             ComposeDeck.state.apps = (owned) apps;
+            string? selectedPath = (ComposeDeck.state.selectedApp != null) ? ComposeDeck.state.selectedApp.path : null;
             if (selectedPath != null) {
                 ComposeApp? found = null;
                 foreach (var app in ComposeDeck.state.apps) {
@@ -71,6 +81,119 @@ namespace Logic {
                 ComposeDeck.state.selectedApp = found;
             }
             ComposeDeck.state.changed();
+        }
+
+        /*
+         * Marks a user-triggered app action as running. The details page
+         * renders its spinner and button visibility from this flag.
+         */
+        private static void beginAppAction () {
+            ComposeDeck.state.actionInProgress = true;
+            ComposeDeck.state.actionError = null;
+            ComposeDeck.state.changed();
+        }
+
+        /*
+         * Refreshes app state after an action and clears the in-progress
+         * flag. The flag is held for a minimum time so that fast local
+         * podman actions still produce visible feedback.
+         */
+        private static void finishAppAction (int64 startedAt, string? error = null) {
+            List<ComposeApp> apps;
+            fetchApps (out apps);
+
+            GLib.MainContext.default ().invoke (() => {
+                ComposeDeck.state.apps = (owned) apps;
+                ComposeDeck.state.actionError = error;
+                string? selectedPath = (ComposeDeck.state.selectedApp != null) ? ComposeDeck.state.selectedApp.path : null;
+                if (selectedPath != null) {
+                    ComposeApp? found = null;
+                    foreach (var candidate in ComposeDeck.state.apps) {
+                        if (candidate.path == selectedPath) { found = candidate; break; }
+                    }
+                    ComposeDeck.state.selectedApp = found;
+                }
+
+                int64 elapsedMs = (GLib.get_monotonic_time() - startedAt) / 1000;
+                int64 minVisibleMs = 700;
+                if (elapsedMs < minVisibleMs) {
+                    GLib.Timeout.add ((uint) (minVisibleMs - elapsedMs), () => {
+                        ComposeDeck.state.actionInProgress = false;
+                        ComposeDeck.state.changed();
+                        return false;
+                    });
+                } else {
+                    ComposeDeck.state.actionInProgress = false;
+                    ComposeDeck.state.changed();
+                }
+                return false;
+            });
+        }
+
+        /*
+         * Builds a single-line toast message for the services whose action
+         * failed, or returns null when every action succeeded.
+         */
+        private static string? formatFailures (string verb, List<string> failed) {
+            if (failed.length() == 0) return null;
+
+            var names = new StringBuilder ();
+            foreach (var name in failed) {
+                if (names.len > 0) names.append(", ");
+                names.append(name);
+            }
+            return "Failed to %s: %s".printf (verb, names.str);
+        }
+
+        public static void startApp (ComposeApp app) {
+            if (ComposeDeck.state.actionInProgress) return;
+            ComposeDeck.beginAppAction();
+
+            int64 startedAt = GLib.get_monotonic_time();
+            GLib.Thread.create<int> (() => {
+                var failed = new List<string> ();
+                foreach (var service in app.services) {
+                    if (!service.running && !ComposeService.startContainer (service.containerName)) {
+                        failed.append (service.name);
+                    }
+                }
+                ComposeDeck.finishAppAction (startedAt, ComposeDeck.formatFailures ("start", failed));
+                return 0;
+            }, false);
+        }
+
+        public static void stopApp (ComposeApp app) {
+            if (ComposeDeck.state.actionInProgress) return;
+            ComposeDeck.beginAppAction();
+
+            int64 startedAt = GLib.get_monotonic_time();
+            GLib.Thread.create<int> (() => {
+                var failed = new List<string> ();
+                foreach (var service in app.services) {
+                    if (service.running && !ComposeService.stopContainer (service.containerName)) {
+                        failed.append (service.name);
+                    }
+                }
+                ComposeDeck.finishAppAction (startedAt, ComposeDeck.formatFailures ("stop", failed));
+                return 0;
+            }, false);
+        }
+
+        public static void restartApp (ComposeApp app) {
+            if (ComposeDeck.state.actionInProgress) return;
+            ComposeDeck.beginAppAction();
+
+            int64 startedAt = GLib.get_monotonic_time();
+            GLib.Thread.create<int> (() => {
+                var failed = new List<string> ();
+                foreach (var service in app.services) {
+                    if (!ComposeService.restartContainer (service.containerName)) {
+                        failed.append (service.name);
+                    }
+                }
+                ComposeDeck.finishAppAction (startedAt, ComposeDeck.formatFailures ("restart", failed));
+                return 0;
+            }, false);
         }
 
 

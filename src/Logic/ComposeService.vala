@@ -122,20 +122,24 @@ namespace Logic {
                     if (running) anyRunning = true;
 
                     string svcName = projectName;
+                    string containerName = "";
                     if (obj.has_member("Labels")) {
                         var labels = obj.get_object_member("Labels");
                         if (labels != null && labels.has_member("com.docker.compose.service")) {
                             svcName = labels.get_string_member("com.docker.compose.service");
                         }
                     }
-                    if (svcName == projectName && obj.has_member("Names")) {
+                    if (obj.has_member("Names")) {
                         var names = obj.get_array_member("Names");
                         if (names != null && names.get_length() > 0) {
                             string? nm = names.get_string_element(0);
                             if (nm != null) {
                                 string bare = nm;
                                 while (bare.has_prefix("/")) bare = bare.substring(1);
-                                if (bare.index_of("/") < 0 && bare != "") svcName = bare;
+                                containerName = bare;
+                                if (svcName == projectName && bare.index_of("/") < 0 && bare != "") {
+                                    svcName = bare;
+                                }
                             }
                         }
                     }
@@ -161,6 +165,7 @@ namespace Logic {
                     }
 
                     var service = new AppService(svcName, running);
+                    service.containerName = containerName;
                     service.image = image;
                     foreach (var port in ports) {
                         service.ports.append(port);
@@ -177,6 +182,58 @@ namespace Logic {
             bool anyRunning = false;
             ComposeService.listServices(path, out anyRunning);
             return anyRunning;
+        }
+
+        /*
+         * Sends a container lifecycle action (start/stop/restart) to the podman
+         * socket and reports success based on the HTTP status code.
+         */
+        private static bool containerAction (string name, string action) {
+            string? sock = ComposeService.socketPath();
+            if (sock == null) return false;
+            if (!ComposeService.canConnect(sock)) return false;
+
+            try {
+                var socket = new GLib.Socket(GLib.SocketFamily.UNIX, GLib.SocketType.STREAM, GLib.SocketProtocol.DEFAULT);
+                var addr = new GLib.UnixSocketAddress(sock);
+                socket.connect(addr, null);
+                socket.set_timeout(10);
+
+                string request = "POST /containers/" + name + "/" + action + " HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
+                socket.send(request.data, null);
+
+                var buf = new uint8[4096];
+                var response = new GLib.ByteArray();
+                ssize_t received;
+                while ((received = socket.receive(buf, null)) > 0) {
+                    response.append(buf[:received]);
+                }
+                socket.close();
+
+                string resp = (string) response.data;
+                int start = resp.index_of(" ") + 1;
+                if (start <= 0) return false;
+                string rest = resp.substring(start);
+                int end = rest.index_of(" ");
+                if (end < 0) end = rest.length;
+                string codeStr = rest.substring(0, end);
+                int code = int.parse (codeStr);
+                return code >= 200 && code < 300;
+            } catch (Error e) {
+                return false;
+            }
+        }
+
+        public static bool startContainer (string name) {
+            return ComposeService.containerAction(name, "start");
+        }
+
+        public static bool stopContainer (string name) {
+            return ComposeService.containerAction(name, "stop?t=10");
+        }
+
+        public static bool restartContainer (string name) {
+            return ComposeService.containerAction(name, "restart?t=10");
         }
     }
 }

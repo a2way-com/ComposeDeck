@@ -14,7 +14,12 @@ namespace Views {
     public class AppDetailsPage : Gtk.Box {
         [GtkChild] private unowned Adw.ActionRow pathRow;
         [GtkChild] private unowned Adw.ActionRow statusRow;
+        [GtkChild] private unowned Adw.ActionRow actionsRow;
         [GtkChild] private unowned Gtk.Button openButton;
+        [GtkChild] private unowned Gtk.Button startButton;
+        [GtkChild] private unowned Gtk.Button stopButton;
+        [GtkChild] private unowned Gtk.Button restartButton;
+        [GtkChild] private unowned Adw.Spinner actionSpinner;
         [GtkChild] private unowned Gtk.Box servicesBox;
 
         private Logic.State state;
@@ -24,6 +29,9 @@ namespace Views {
             this.state = Logic.Application.getState();
             this.state.changed.connect(this.render);
             this.openButton.clicked.connect(this.onOpenDirClicked);
+            this.startButton.clicked.connect(this.onStartAppClicked);
+            this.stopButton.clicked.connect(this.onStopAppClicked);
+            this.restartButton.clicked.connect(this.onRestartAppClicked);
             this.render();
         }
 
@@ -41,6 +49,17 @@ namespace Views {
             string statusText = selected.running ? "Running" : "Stopped";
             string markup = "<span foreground='%s' size='large'>●</span> %s".printf(dotColor, statusText);
             statusRow.set_subtitle(markup);
+
+            bool busy = this.state.actionInProgress;
+            this.startButton.set_visible(!busy && !selected.running);
+            this.stopButton.set_visible(!busy && selected.running);
+            this.restartButton.set_visible(!busy && selected.running);
+
+            if (busy) {
+                this.actionSpinner.set_visible(true);
+            } else {
+                this.actionSpinner.set_visible(false);
+            }
 
             foreach (var group in this.serviceGroups) {
                 this.servicesBox.remove(group);
@@ -66,6 +85,24 @@ namespace Views {
             } catch (Error e) {
                 // Ignore; file manager may be unavailable in sandbox.
             }
+        }
+
+        private void onStartAppClicked () {
+            var selected = this.state.selectedApp;
+            if (selected == null) return;
+            Logic.ComposeDeck.startApp(selected);
+        }
+
+        private void onStopAppClicked () {
+            var selected = this.state.selectedApp;
+            if (selected == null) return;
+            Logic.ComposeDeck.stopApp(selected);
+        }
+
+        private void onRestartAppClicked () {
+            var selected = this.state.selectedApp;
+            if (selected == null) return;
+            Logic.ComposeDeck.restartApp(selected);
         }
     }
 }

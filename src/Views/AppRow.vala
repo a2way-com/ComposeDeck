@@ -19,9 +19,35 @@ namespace Views {
         public AppRow (ComposeApp app) {
             this.app = app;
 
-            string dotColor = this.app.running ? "#4CAF50" : "#F44336";
-            this.indicator.set_markup("<span foreground='%s' size='large'>●</span>".printf(dotColor));
+            string dotColor;
+            string indicatorText;
+            if (app.serviceCount == 0) {
+                dotColor = "#9E9E9E";
+                indicatorText = "●";
+            } else if (app.runningCount == app.serviceCount) {
+                dotColor = "#4CAF50";
+                indicatorText = "●";
+            } else if (app.runningCount > 0) {
+                dotColor = "#FFA500";
+                indicatorText = "●";
+            } else {
+                dotColor = "#F44336";
+                indicatorText = "●";
+            }
+            this.indicator.set_markup("<span foreground='%s' size='large'>%s</span>".printf(dotColor, indicatorText));
             this.nameLabel.set_text(this.app.name);
+
+            string subtitle;
+            if (app.serviceCount == 0) {
+                subtitle = "Never started";
+            } else if (app.runningCount == app.serviceCount) {
+                subtitle = "Running";
+            } else if (app.runningCount > 0) {
+                subtitle = "%d of %d running".printf(app.runningCount, app.serviceCount);
+            } else {
+                subtitle = "All stopped";
+            }
+            this.nameLabel.set_tooltip_text(subtitle);
         }
 
     }

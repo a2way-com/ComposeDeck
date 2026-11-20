@@ -150,7 +150,7 @@ namespace Views {
                 this.servicesBox.append(serviceGroup);
                 this.serviceGroups.append(serviceGroup);
 
-                var section = new Views.AppServiceSection(service);
+                var section = new Views.AppServiceSection(service, this.get_toplevel_window());
                 section.add_to(serviceGroup);
             }
         }
@@ -189,6 +189,14 @@ namespace Views {
             var display = Gdk.Display.get_default ();
             var clipboard = display.get_clipboard ();
             clipboard.set_text (selected.path);
+        }
+
+        private Gtk.Window? get_toplevel_window () {
+            var top = this.get_root ();
+            if (top != null && top is Gtk.Window) {
+                return (Gtk.Window) top;
+            }
+            return null;
         }
 
         private void onStartAppClicked () {

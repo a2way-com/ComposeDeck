@@ -289,6 +289,11 @@ namespace Logic {
          * GET /containers/{name}/logs?stdout=1&stderr=1&tail=200 and return
          * the log text, or null on any failure.
          */
+        /*
+         * GET /containers/{name}/logs and return the log text. The podman
+         * Docker-compatible API returns a multiplexed stream with 8-byte
+         * headers per frame; we strip those and concatenate the payload.
+         */
         public static string? containerLogs (string name) {
             string? sock = ComposeService.socketPath();
             if (sock == null) return null;
@@ -311,10 +316,47 @@ namespace Logic {
                 }
                 socket.close();
 
-                string resp = (string) response.data;
-                int bodyStart = resp.index_of("\r\n\r\n");
+                // Find body start in raw bytes (HTTP headers end at \r\n\r\n).
+                // We must work with raw bytes because the multiplexed log stream
+                // contains null bytes that would truncate a string.
+                uint8[] raw = response.data;
+                int bodyStart = -1;
+                for (int i = 0; i + 3 < raw.length; i++) {
+                    if (raw[i] == 0x0D && raw[i+1] == 0x0A && raw[i+2] == 0x0D && raw[i+3] == 0x0A) {
+                        bodyStart = i + 4;
+                        break;
+                    }
+                }
                 if (bodyStart < 0) return null;
-                return resp.substring(bodyStart + 4);
+
+                // Parse the multiplexed Docker log stream: each frame has an
+                // 8-byte header (stream type, 3 reserved, 4-byte big-endian
+                // size) followed by the payload.
+                var result = new StringBuilder();
+                int pos = bodyStart;
+                while (pos + 8 <= raw.length) {
+                    uint32 size = ((uint32) raw[pos + 4] << 24)
+                                | ((uint32) raw[pos + 5] << 16)
+                                | ((uint32) raw[pos + 6] << 8)
+                                | ((uint32) raw[pos + 7]);
+                    pos += 8;
+                    if (pos + (int) size > raw.length) size = (uint32) (raw.length - pos);
+                    for (uint32 i = 0; i < size; i++) {
+                        result.append_c((char) raw[pos + (int) i]);
+                    }
+                    pos += (int) size;
+                    if (size == 0) break;
+                }
+                // If parsing produced nothing, return raw body as string.
+                if (result.len == 0) {
+                    var fallback = new StringBuilder();
+                    for (int i = bodyStart; i < raw.length; i++) {
+                        fallback.append_c((char) raw[i]);
+                    }
+                    if (fallback.len > 0) return fallback.str;
+                    return null;
+                }
+                return result.str;
             } catch (Error e) {
                 return null;
             }

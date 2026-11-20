@@ -11,6 +11,26 @@ namespace Logic {
         public const string DEVELOPER_NAME = "a2way";
         public const string APPS_SUBDIR = "Apps";
 
+        // Strip // and /* */ comments from a JSONC document so it can be
+        // parsed by Json.Parser.
+        public static string strip_jsonc_comments (string text) {
+            var result = new StringBuilder ();
+            int i = 0;
+            while (i < text.length) {
+                if (i + 1 < text.length && text[i] == '/' && text[i + 1] == '/') {
+                    while (i < text.length && text[i] != '\n') i++;
+                } else if (i + 1 < text.length && text[i] == '/' && text[i + 1] == '*') {
+                    i += 2;
+                    while (i + 1 < text.length && !(text[i] == '*' && text[i + 1] == '/')) i++;
+                    i += 2;
+                } else {
+                    result.append_c (text[i]);
+                    i++;
+                }
+            }
+            return result.str;
+        }
+
         private static State state;
 
         public static void start (State state) {
@@ -32,8 +52,7 @@ namespace Logic {
          */
         private static void fetchApps (out List<ComposeApp> apps) {
             apps = new List<ComposeApp> ();
-            string home = Environment.get_home_dir();
-            string appsDir = home + "/" + APPS_SUBDIR;
+            string appsDir = ComposeDeck.state.appsDir;
 
             // Probe podman once; if it's unreachable every app looks empty.
             ComposeDeck.state.podmanReachable = ComposeService.ensureService();

@@ -15,9 +15,11 @@ namespace Views {
     public class AppServiceSection : GLib.Object {
         private Logic.AppService service;
         private List<Adw.PreferencesRow> rows = new List<Adw.PreferencesRow> ();
+        private Gtk.Window? parentWindow;
 
-        public AppServiceSection (Logic.AppService service) {
+        public AppServiceSection (Logic.AppService service, Gtk.Window? parentWindow = null) {
             this.service = service;
+            this.parentWindow = parentWindow;
         }
 
         public unowned List<Adw.PreferencesRow> get_rows () {
@@ -48,7 +50,7 @@ namespace Views {
 
             var logsButton = new Gtk.Button ();
             var logsIcon = new Gtk.Image ();
-            logsIcon.icon_name = "view-text-symbolic";
+            logsIcon.icon_name = "utilities-terminal-symbolic";
             logsIcon.set_pixel_size (16);
             logsButton.set_child (logsIcon);
             logsButton.set_hexpand (false);
@@ -203,12 +205,12 @@ namespace Views {
         private void showLogsDialog () {
             if (this.service.containerName == "") return;
 
-            string? logs = Logic.ComposeService.containerLogs (this.service.containerName);
-            string text = logs != null ? logs : "Unable to fetch logs.";
+            string containerName = this.service.containerName;
+            string serviceName = this.service.name;
 
-            var dialog = new Adw.MessageDialog (null, "Logs — %s".printf (this.service.name), null);
+            var dialog = new Adw.MessageDialog (null, "Logs — %s".printf (serviceName), null);
             dialog.set_modal (true);
-            dialog.set_heading ("Logs — %s".printf (this.service.name));
+            dialog.set_heading ("Logs — %s".printf (serviceName));
 
             var scrolled = new Gtk.ScrolledWindow ();
             scrolled.set_vexpand (true);
@@ -220,7 +222,7 @@ namespace Views {
             view.set_editable (false);
             view.set_cursor_visible (false);
             view.set_monospace (true);
-            view.get_buffer ().set_text (text);
+            view.get_buffer ().set_text ("Loading logs...");
             scrolled.set_child (view);
 
             dialog.set_extra_child (scrolled);
@@ -228,11 +230,21 @@ namespace Views {
             dialog.set_default_response ("ok");
             dialog.set_close_response ("ok");
 
-            var top = AppServiceSection.find_toplevel_window ();
+            var top = this.parentWindow != null ? this.parentWindow : AppServiceSection.find_toplevel_window ();
             if (top != null) {
                 dialog.set_transient_for (top);
-                dialog.show ();
+                dialog.present ();
             }
+
+            GLib.Thread.create<int> (() => {
+                string? logs = Logic.ComposeService.containerLogs (containerName);
+                string text = logs != null && logs != "" ? logs : "No logs available.";
+                GLib.MainContext.default ().invoke (() => {
+                    view.get_buffer ().set_text (text);
+                    return false;
+                });
+                return 0;
+            }, false);
         }
 
         private static Gtk.Window? find_toplevel_window () {

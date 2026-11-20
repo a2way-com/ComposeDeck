@@ -35,6 +35,10 @@ namespace Logic {
             string home = Environment.get_home_dir();
             string appsDir = home + "/" + APPS_SUBDIR;
 
+            // Probe podman once; if it's unreachable every app looks empty.
+            ComposeDeck.state.podmanReachable = ComposeService.ensureService();
+            ComposeDeck.state.lastUpdated = GLib.get_monotonic_time() / 1000 / 1000;
+
             try {
                 var handle = Dir.open(appsDir);
                 string? entry;
@@ -53,8 +57,19 @@ namespace Logic {
 
                     bool anyRunning = false;
                     var services = ComposeService.listServices(path, out anyRunning);
+                    int runningCount = 0;
+                    foreach (var svc in services) {
+                        if (svc.running) runningCount++;
+                    }
                     var app = new ComposeApp(entry, path, anyRunning);
+                    app.runningCount = runningCount;
+                    app.serviceCount = (int) services.length();
                     app.services = (owned) services;
+                    app.services.sort ((a, b) => {
+                        if (a.name < b.name) return -1;
+                        if (a.name > b.name) return 1;
+                        return 0;
+                    });
                     apps.append(app);
                 }
             } catch (Error e) {

@@ -6,6 +6,8 @@ namespace Logic {
         public ComposeApp? selectedApp = null;
         public bool actionInProgress = false;
         public string? actionError = null;
+        public bool podmanReachable = true;
+        public int64 lastUpdated = 0;
 
         public State () {
             this.apps = new GLib.List<ComposeApp>();

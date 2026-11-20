@@ -145,6 +145,7 @@ namespace Logic {
                     }
 
                     string image = obj.has_member("Image") ? obj.get_string_member("Image") : "";
+                    string status = obj.has_member("Status") ? obj.get_string_member("Status") : "";
 
                     var ports = new GLib.List<AppPort>();
                     if (obj.has_member("Ports")) {
@@ -167,6 +168,31 @@ namespace Logic {
                     var service = new AppService(svcName, running);
                     service.containerName = containerName;
                     service.image = image;
+                    service.statusText = status;
+
+                    if (containerName != "") {
+                        string? inspect = ComposeService.containerInspect(containerName);
+                        if (inspect != null) {
+                            try {
+                                var hParser = new Json.Parser();
+                                hParser.load_from_data(inspect, -1);
+                                var hRoot = hParser.get_root();
+                                var hObj = hRoot != null ? hRoot.get_object() : null;
+                                if (hObj != null) {
+                                    var hState = hObj.get_object_member("State");
+                                    if (hState != null && hState.has_member("Health")) {
+                                        var hHealth = hState.get_object_member("Health");
+                                        if (hHealth != null && hHealth.has_member("Status")) {
+                                            service.healthStatus = hHealth.get_string_member("Status");
+                                        }
+                                    }
+                                }
+                            } catch (Error e) {
+                                // Ignore malformed inspect response.
+                            }
+                        }
+                    }
+
                     foreach (var port in ports) {
                         service.ports.append(port);
                     }
@@ -221,6 +247,76 @@ namespace Logic {
                 return code >= 200 && code < 300;
             } catch (Error e) {
                 return false;
+            }
+        }
+
+        /*
+         * GET /containers/{name}/json and return the response body, or null
+         * on any failure.
+         */
+        private static string? containerInspect (string name) {
+            string? sock = ComposeService.socketPath();
+            if (sock == null) return null;
+            if (!ComposeService.canConnect(sock)) return null;
+
+            try {
+                var socket = new GLib.Socket(GLib.SocketFamily.UNIX, GLib.SocketType.STREAM, GLib.SocketProtocol.DEFAULT);
+                var addr = new GLib.UnixSocketAddress(sock);
+                socket.connect(addr, null);
+                socket.set_timeout(10);
+
+                string request = "GET /containers/" + name + "/json HTTP/1.0\r\nHost: localhost\r\n\r\n";
+                socket.send(request.data, null);
+
+                var buf = new uint8[65536];
+                var response = new GLib.ByteArray();
+                ssize_t received;
+                while ((received = socket.receive(buf, null)) > 0) {
+                    response.append(buf[:received]);
+                }
+                socket.close();
+
+                string resp = (string) response.data;
+                int bodyStart = resp.index_of("\r\n\r\n");
+                if (bodyStart < 0) return null;
+                return resp.substring(bodyStart + 4);
+            } catch (Error e) {
+                return null;
+            }
+        }
+
+        /*
+         * GET /containers/{name}/logs?stdout=1&stderr=1&tail=200 and return
+         * the log text, or null on any failure.
+         */
+        public static string? containerLogs (string name) {
+            string? sock = ComposeService.socketPath();
+            if (sock == null) return null;
+            if (!ComposeService.canConnect(sock)) return null;
+
+            try {
+                var socket = new GLib.Socket(GLib.SocketFamily.UNIX, GLib.SocketType.STREAM, GLib.SocketProtocol.DEFAULT);
+                var addr = new GLib.UnixSocketAddress(sock);
+                socket.connect(addr, null);
+                socket.set_timeout(10);
+
+                string request = "GET /containers/" + name + "/logs?stdout=1&stderr=1&tail=200 HTTP/1.0\r\nHost: localhost\r\n\r\n";
+                socket.send(request.data, null);
+
+                var buf = new uint8[65536];
+                var response = new GLib.ByteArray();
+                ssize_t received;
+                while ((received = socket.receive(buf, null)) > 0) {
+                    response.append(buf[:received]);
+                }
+                socket.close();
+
+                string resp = (string) response.data;
+                int bodyStart = resp.index_of("\r\n\r\n");
+                if (bodyStart < 0) return null;
+                return resp.substring(bodyStart + 4);
+            } catch (Error e) {
+                return null;
             }
         }
 

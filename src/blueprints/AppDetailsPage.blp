@@ -27,6 +27,26 @@ template $AppDetailsPage: Gtk.Box {
         margin-top: 6;
         margin-bottom: 6;
       }
+
+      Gtk.Button pathCopyButton {
+        label: "Copy";
+        hexpand: false;
+        halign: end;
+        valign: center;
+        css-classes: ["flat"];
+        margin-top: 6;
+        margin-bottom: 6;
+      }
+
+      Gtk.Button composeButton {
+        label: "Compose file";
+        hexpand: false;
+        halign: end;
+        valign: center;
+        css-classes: ["flat"];
+        margin-top: 6;
+        margin-bottom: 6;
+      }
     }
 
     Adw.ActionRow statusRow {

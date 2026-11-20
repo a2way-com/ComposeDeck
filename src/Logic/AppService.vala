@@ -9,6 +9,8 @@ namespace Logic {
         public string name { get; set; }
         public string containerName { get; set; }
         public string image { get; set; }
+        public string statusText { get; set; }
+        public string healthStatus { get; set; }
         public bool running { get; set; }
         public GLib.List<AppPort> ports = new GLib.List<AppPort>();
 
@@ -16,6 +18,8 @@ namespace Logic {
             this.name = name;
             this.containerName = "";
             this.image = "";
+            this.statusText = "";
+            this.healthStatus = "";
             this.running = running;
         }
     }

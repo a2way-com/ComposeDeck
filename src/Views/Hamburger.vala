@@ -66,7 +66,6 @@ namespace Views {
 
             var row = new Adw.ActionRow ();
             row.set_title ("Apps directory");
-            row.set_subtitle (state.appsDir);
 
             var entry = new Gtk.Entry ();
             entry.text = state.appsDir;
@@ -81,7 +80,6 @@ namespace Views {
             entry.notify["text"].connect ((e, pspec) => {
                 state.appsDir = entry.text;
                 state.saveSettings();
-                row.set_subtitle (state.appsDir);
                 Logic.ComposeDeck.discoverApps();
             });
             row.add_suffix (entry);
@@ -96,7 +94,7 @@ namespace Views {
             resetButton.label = "Reset";
             resetButton.hexpand = false;
             resetButton.valign = Gtk.Align.CENTER;
-            resetButton.css_classes = new string[] { "flat" };
+            resetButton.css_classes = new string[] { "suggested-action" };
             resetButton.set_margin_top (6);
             resetButton.set_margin_bottom (6);
             resetRow.add_suffix (resetButton);
@@ -105,7 +103,6 @@ namespace Views {
                 state.appsDir = home + "/Apps";
                 state.saveSettings();
                 entry.text = state.appsDir;
-                row.set_subtitle (state.appsDir);
                 Logic.ComposeDeck.discoverApps();
             });
             group.add (resetRow);

@@ -230,6 +230,44 @@ namespace Logic {
             }, false);
         }
 
+        public static void startAllApps () {
+            if (ComposeDeck.state.actionInProgress) return;
+            ComposeDeck.beginAppAction();
+
+            int64 startedAt = GLib.get_monotonic_time();
+            GLib.Thread.create<int> (() => {
+                var failed = new List<string> ();
+                foreach (var app in ComposeDeck.state.apps) {
+                    foreach (var service in app.services) {
+                        if (!service.running && !ComposeService.startContainer (service.containerName)) {
+                            failed.append (service.name);
+                        }
+                    }
+                }
+                ComposeDeck.finishAppAction (startedAt, ComposeDeck.formatFailures ("start", failed));
+                return 0;
+            }, false);
+        }
+
+        public static void stopAllApps () {
+            if (ComposeDeck.state.actionInProgress) return;
+            ComposeDeck.beginAppAction();
+
+            int64 startedAt = GLib.get_monotonic_time();
+            GLib.Thread.create<int> (() => {
+                var failed = new List<string> ();
+                foreach (var app in ComposeDeck.state.apps) {
+                    foreach (var service in app.services) {
+                        if (service.running && !ComposeService.stopContainer (service.containerName)) {
+                            failed.append (service.name);
+                        }
+                    }
+                }
+                ComposeDeck.finishAppAction (startedAt, ComposeDeck.formatFailures ("stop", failed));
+                return 0;
+            }, false);
+        }
+
 
     }
 }

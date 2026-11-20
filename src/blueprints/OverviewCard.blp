@@ -1,0 +1,80 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $OverviewCard: Gtk.Frame {
+  hexpand: true;
+  vexpand: false;
+  width-request: 280;
+  css-classes: ["overview-card"];
+
+  child: Gtk.Box {
+    orientation: vertical;
+    spacing: 12;
+    margin-top: 16;
+    margin-bottom: 16;
+    margin-start: 16;
+    margin-end: 16;
+
+    Gtk.Box {
+      orientation: horizontal;
+      spacing: 12;
+      hexpand: true;
+      valign: center;
+
+      Gtk.Label indicator {
+        valign: center;
+        use-markup: true;
+      }
+
+      Gtk.Label nameLabel {
+        halign: start;
+        hexpand: true;
+        valign: center;
+        xalign: 0;
+        css-classes: ["heading"];
+      }
+
+      Gtk.Label statusLabel {
+        halign: end;
+        valign: center;
+        xalign: 1;
+        css-classes: ["dim-label", "caption"];
+      }
+    }
+
+    Gtk.Label serviceLabel {
+      halign: start;
+      xalign: 0;
+      css-classes: ["dim-label", "caption"];
+    }
+
+    Gtk.Box {
+      orientation: horizontal;
+      spacing: 8;
+      halign: end;
+      valign: center;
+      margin-top: 8;
+
+      Gtk.Button startButton {
+        label: "Start";
+        hexpand: false;
+        valign: center;
+        css-classes: ["flat"];
+      }
+
+      Gtk.Button stopButton {
+        label: "Stop";
+        hexpand: false;
+        valign: center;
+        css-classes: ["flat"];
+      }
+
+      Gtk.Button restartButton {
+        label: "Restart";
+        hexpand: false;
+        valign: center;
+        css-classes: ["flat"];
+      }
+    }
+  };
+}

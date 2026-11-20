@@ -1,60 +1,150 @@
 using Gtk 4.0;
+using Adw 1;
 
 template $OverviewPage: Gtk.Box {
   orientation: vertical;
   spacing: 12;
+  margin-top: 24;
+  margin-bottom: 24;
+  margin-start: 24;
+  margin-end: 24;
   halign: center;
-  valign: center;
-  margin-top: 36;
-  margin-bottom: 36;
-  margin-start: 48;
-  margin-end: 48;
+  hexpand: true;
+  valign: start;
 
-  Gtk.Box {
-    orientation: vertical;
-    spacing: 6;
+  Gtk.Box statsBox {
+    orientation: horizontal;
+    spacing: 24;
     halign: center;
-    valign: center;
+    valign: start;
+    margin-bottom: 12;
 
     Gtk.Box {
-      orientation: horizontal;
-      spacing: 6;
+      orientation: vertical;
+      spacing: 2;
       halign: center;
 
       Gtk.Label {
-        label: "Total apps:";
+        label: "Total";
+        css-classes: ["caption", "dim-label"];
       }
 
       Gtk.Label totalValue {
-        use-markup: true;
+        css-classes: ["title-1"];
       }
     }
 
     Gtk.Box {
-      orientation: horizontal;
-      spacing: 6;
+      orientation: vertical;
+      spacing: 2;
       halign: center;
 
       Gtk.Label {
-        label: "Running:";
+        label: "Running";
+        css-classes: ["caption", "dim-label"];
       }
 
       Gtk.Label runningValue {
+        css-classes: ["title-1"];
         use-markup: true;
       }
     }
 
     Gtk.Box {
-      orientation: horizontal;
-      spacing: 6;
+      orientation: vertical;
+      spacing: 2;
       halign: center;
 
       Gtk.Label {
-        label: "Stopped:";
+        label: "Stopped";
+        css-classes: ["caption", "dim-label"];
       }
 
       Gtk.Label stoppedValue {
+        css-classes: ["title-1"];
         use-markup: true;
+      }
+    }
+
+    Gtk.Box {
+      orientation: vertical;
+      spacing: 2;
+      halign: center;
+
+      Gtk.Label {
+        label: "Partial";
+        css-classes: ["caption", "dim-label"];
+      }
+
+      Gtk.Label partialValue {
+        css-classes: ["title-1"];
+        use-markup: true;
+      }
+    }
+  }
+
+  Gtk.Box bulkBox {
+    orientation: horizontal;
+    spacing: 6;
+    halign: center;
+    valign: start;
+    margin-bottom: 12;
+
+    Gtk.Button startAllButton {
+      label: "Start all";
+      hexpand: false;
+      valign: center;
+      css-classes: ["flat"];
+    }
+
+    Gtk.Button stopAllButton {
+      label: "Stop all";
+      hexpand: false;
+      valign: center;
+      css-classes: ["flat"];
+    }
+  }
+
+  Gtk.Stack contentStack {
+    hexpand: true;
+    vexpand: true;
+
+    Gtk.FlowBox flowBox {
+      halign: center;
+      hexpand: true;
+      valign: start;
+      column-spacing: 16;
+      row-spacing: 16;
+      min-children-per-line: 1;
+      max-children-per-line: 4;
+      selection-mode: none;
+      margin-top: 8;
+    }
+
+    Gtk.Box emptyState {
+      orientation: vertical;
+      spacing: 8;
+      halign: center;
+      valign: center;
+      hexpand: true;
+      vexpand: true;
+
+      Gtk.Image {
+        icon-name: "folder-open-symbolic";
+        pixel-size: 48;
+        opacity: 0.5;
+      }
+
+      Gtk.Label {
+        label: "No apps found";
+        css-classes: ["title-2"];
+        opacity: 0.7;
+      }
+
+      Gtk.Label {
+        label: "Add compose projects to your apps folder,\nor change it in Settings (hamburger menu).";
+        css-classes: ["dim-label"];
+        justify: center;
       }
     }
   }

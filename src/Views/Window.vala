@@ -25,6 +25,34 @@ namespace Views {
             this.set_application(app);
             this.state = Logic.Application.getState();
 
+            // Style overview cards: background without hover highlight.
+            var css = new Gtk.CssProvider();
+            css.load_from_string("""
+                .overview-card {
+                    background-color: #2d2d2d;
+                    border-radius: 12px;
+                }
+                .overview-card > border {
+                    border: none;
+                }
+                flowboxchild {
+                    background-color: transparent;
+                    background: none;
+                }
+                flowboxchild:hover,
+                flowboxchild:selected,
+                flowboxchild:active {
+                    background-color: transparent;
+                    background: none;
+                    box-shadow: none;
+                }
+            """);
+            Gtk.StyleContext.add_provider_for_display(
+                Gdk.Display.get_default(),
+                css,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 100
+            );
+
             this.sidebar = new Sidebar();
             this.contentArea = new ContentArea();
             this.hamburger = new Hamburger(this, this.sidebar.menuButton);

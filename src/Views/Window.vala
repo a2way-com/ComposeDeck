@@ -30,10 +30,14 @@ namespace Views {
             css.load_from_string("""
                 .overview-card {
                     background-color: #2d2d2d;
+                    border: 2px solid transparent;
                     border-radius: 12px;
                 }
-                .overview-card > border {
-                    border: none;
+                .overview-card:hover {
+                    border-color: @accent_bg_color;
+                }
+                .overview-card:focus {
+                    border-color: @accent_bg_color;
                 }
                 flowboxchild {
                     background-color: transparent;
@@ -73,6 +77,11 @@ namespace Views {
             string? error = this.state.consumeActionError();
             if (error != null) {
                 this.toastOverlay.add_toast (new Adw.Toast (error));
+            } else {
+                string? success = this.state.consumeActionSuccess ();
+                if (success != null) {
+                    this.toastOverlay.add_toast (new Adw.Toast (success));
+                }
             }
         }
 

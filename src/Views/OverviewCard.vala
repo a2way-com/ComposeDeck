@@ -18,6 +18,7 @@ namespace Views {
         [GtkChild] private unowned Gtk.Button startButton;
         [GtkChild] private unowned Gtk.Button stopButton;
         [GtkChild] private unowned Gtk.Button restartButton;
+        [GtkChild] private unowned Gtk.ToggleButton pinButton;
 
         public ComposeApp app { get; set; }
 
@@ -69,6 +70,12 @@ namespace Views {
             });
             this.restartButton.clicked.connect(() => {
                 Logic.ComposeDeck.restartApp(this.app);
+            });
+
+            this.pinButton.set_active (Logic.Application.getState ().isPinned (this.app.name));
+            this.pinButton.toggled.connect (() => {
+                Logic.Application.getState ().togglePin (this.app.name);
+                Logic.Application.getState ().changed ();
             });
         }
     }

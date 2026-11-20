@@ -32,15 +32,21 @@ namespace Logic {
         }
 
         private static State state;
+        private static int64 lastPoll = 0;
 
         public static void start (State state) {
             ComposeDeck.state = state;
 
             ComposeDeck.state.selectedApp = null;
             discoverApps();
+            ComposeDeck.lastPoll = GLib.get_monotonic_time() / 1000 / 1000;
 
-            Timeout.add_seconds(10, () => {
-                discoverApps();
+            Timeout.add_seconds(1, () => {
+                int64 now = GLib.get_monotonic_time() / 1000 / 1000;
+                if (now - ComposeDeck.lastPoll >= ComposeDeck.state.refreshInterval) {
+                    ComposeDeck.lastPoll = now;
+                    discoverApps();
+                }
                 return true;
             });
         }
@@ -124,6 +130,7 @@ namespace Logic {
         private static void beginAppAction () {
             ComposeDeck.state.actionInProgress = true;
             ComposeDeck.state.actionError = null;
+            ComposeDeck.state.actionSuccess = null;
             ComposeDeck.state.changed();
         }
 
@@ -132,13 +139,14 @@ namespace Logic {
          * flag. The flag is held for a minimum time so that fast local
          * podman actions still produce visible feedback.
          */
-        private static void finishAppAction (int64 startedAt, string? error = null) {
+        private static void finishAppAction (int64 startedAt, string? error = null, string? success = null) {
             List<ComposeApp> apps;
             fetchApps (out apps);
 
             GLib.MainContext.default ().invoke (() => {
                 ComposeDeck.state.apps = (owned) apps;
                 ComposeDeck.state.actionError = error;
+                ComposeDeck.state.actionSuccess = success;
                 string? selectedPath = (ComposeDeck.state.selectedApp != null) ? ComposeDeck.state.selectedApp.path : null;
                 if (selectedPath != null) {
                     ComposeApp? found = null;
@@ -237,14 +245,24 @@ namespace Logic {
             int64 startedAt = GLib.get_monotonic_time();
             GLib.Thread.create<int> (() => {
                 var failed = new List<string> ();
+                int affected = 0;
                 foreach (var app in ComposeDeck.state.apps) {
+                    bool changed = false;
                     foreach (var service in app.services) {
-                        if (!service.running && !ComposeService.startContainer (service.containerName)) {
-                            failed.append (service.name);
+                        if (!service.running) {
+                            if (ComposeService.startContainer (service.containerName)) {
+                                changed = true;
+                            } else {
+                                failed.append (service.name);
+                            }
                         }
                     }
+                    if (changed) affected++;
                 }
-                ComposeDeck.finishAppAction (startedAt, ComposeDeck.formatFailures ("start", failed));
+                string? success = affected > 0
+                    ? "Started %d app%s".printf (affected, affected == 1 ? "" : "s")
+                    : null;
+                ComposeDeck.finishAppAction (startedAt, ComposeDeck.formatFailures ("start", failed), success);
                 return 0;
             }, false);
         }
@@ -256,14 +274,51 @@ namespace Logic {
             int64 startedAt = GLib.get_monotonic_time();
             GLib.Thread.create<int> (() => {
                 var failed = new List<string> ();
+                int affected = 0;
                 foreach (var app in ComposeDeck.state.apps) {
+                    bool changed = false;
                     foreach (var service in app.services) {
-                        if (service.running && !ComposeService.stopContainer (service.containerName)) {
+                        if (service.running) {
+                            if (ComposeService.stopContainer (service.containerName)) {
+                                changed = true;
+                            } else {
+                                failed.append (service.name);
+                            }
+                        }
+                    }
+                    if (changed) affected++;
+                }
+                string? success = affected > 0
+                    ? "Stopped %d app%s".printf (affected, affected == 1 ? "" : "s")
+                    : null;
+                ComposeDeck.finishAppAction (startedAt, ComposeDeck.formatFailures ("stop", failed), success);
+                return 0;
+            }, false);
+        }
+
+        public static void restartAllApps () {
+            if (ComposeDeck.state.actionInProgress) return;
+            ComposeDeck.beginAppAction();
+
+            int64 startedAt = GLib.get_monotonic_time();
+            GLib.Thread.create<int> (() => {
+                var failed = new List<string> ();
+                int affected = 0;
+                foreach (var app in ComposeDeck.state.apps) {
+                    bool changed = false;
+                    foreach (var service in app.services) {
+                        if (ComposeService.restartContainer (service.containerName)) {
+                            changed = true;
+                        } else {
                             failed.append (service.name);
                         }
                     }
+                    if (changed) affected++;
                 }
-                ComposeDeck.finishAppAction (startedAt, ComposeDeck.formatFailures ("stop", failed));
+                string? success = affected > 0
+                    ? "Restarted %d app%s".printf (affected, affected == 1 ? "" : "s")
+                    : null;
+                ComposeDeck.finishAppAction (startedAt, ComposeDeck.formatFailures ("restart", failed), success);
                 return 0;
             }, false);
         }

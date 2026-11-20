@@ -107,6 +107,41 @@ namespace Views {
             });
             group.add (resetRow);
 
+            var scanGroup = new Adw.PreferencesGroup ();
+            scanGroup.set_title ("Scanning");
+            page.add (scanGroup);
+
+            var intervalRow = new Adw.ComboRow ();
+            intervalRow.set_title ("Refresh interval");
+            intervalRow.set_model (new Gtk.StringList (new string[] {
+                "5 seconds", "10 seconds", "30 seconds", "60 seconds"
+            }));
+            int[] intervalValues = { 5, 10, 30, 60 };
+            int selectedIndex = 1;
+            for (int i = 0; i < intervalValues.length; i++) {
+                if (intervalValues[i] == state.refreshInterval) selectedIndex = i;
+            }
+            intervalRow.set_selected (selectedIndex);
+            intervalRow.notify["selected"].connect (() => {
+                int index = (int) intervalRow.get_selected ();
+                if (index >= 0 && index < intervalValues.length) {
+                    state.refreshInterval = intervalValues[index];
+                    state.saveSettings ();
+                }
+            });
+            scanGroup.add (intervalRow);
+
+            var pinnedRow = new Adw.SwitchRow ();
+            pinnedRow.set_title ("Pinned apps first");
+            pinnedRow.set_subtitle ("Show pinned apps before others");
+            pinnedRow.set_active (state.pinnedFirst);
+            pinnedRow.notify["active"].connect (() => {
+                state.pinnedFirst = pinnedRow.get_active ();
+                state.saveSettings ();
+                state.changed ();
+            });
+            scanGroup.add (pinnedRow);
+
             prefs.present ();
         }
 

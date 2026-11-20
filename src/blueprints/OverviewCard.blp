@@ -40,6 +40,17 @@ template $OverviewCard: Gtk.Frame {
         xalign: 1;
         css-classes: ["dim-label", "caption"];
       }
+
+      Gtk.ToggleButton pinButton {
+        hexpand: false;
+        valign: center;
+        css-classes: ["flat"];
+        tooltip-text: "Pin app";
+        child: Gtk.Image {
+          icon-name: "view-pin-symbolic";
+          pixel-size: 16;
+        };
+      }
     }
 
     Gtk.Label serviceLabel {

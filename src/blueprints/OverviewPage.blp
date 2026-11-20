@@ -12,6 +12,12 @@ template $OverviewPage: Gtk.Box {
   hexpand: true;
   valign: start;
 
+  Adw.Banner podmanBanner {
+    title: "Podman is not reachable";
+    button-label: "Retry";
+    revealed: false;
+  }
+
   Gtk.Box statsBox {
     orientation: horizontal;
     spacing: 24;
@@ -103,6 +109,80 @@ template $OverviewPage: Gtk.Box {
       valign: center;
       css-classes: ["flat"];
     }
+
+    Gtk.Button restartAllButton {
+      label: "Restart all";
+      hexpand: false;
+      valign: center;
+      css-classes: ["flat"];
+    }
+
+    Adw.Spinner bulkSpinner {
+      hexpand: false;
+      valign: center;
+      width-request: 20;
+      height-request: 20;
+      visible: false;
+    }
+  }
+
+  Gtk.Box freshnessBox {
+    orientation: horizontal;
+    spacing: 6;
+    halign: center;
+    margin-bottom: 6;
+
+    Gtk.Label updatedLabel {
+      css-classes: ["caption", "dim-label"];
+    }
+
+    Gtk.Button refreshButton {
+      hexpand: false;
+      valign: center;
+      css-classes: ["flat"];
+      tooltip-text: "Refresh now";
+      child: Gtk.Image {
+        icon-name: "view-refresh-symbolic";
+        pixel-size: 14;
+      };
+    }
+  }
+
+  Gtk.Box filterBox {
+    orientation: horizontal;
+    spacing: 6;
+    halign: center;
+    margin-bottom: 12;
+
+    Gtk.ToggleButton allFilter {
+      label: "All";
+      active: true;
+      css-classes: ["pill"];
+    }
+
+    Gtk.ToggleButton runningFilter {
+      label: "Running";
+      group: allFilter;
+      css-classes: ["pill"];
+    }
+
+    Gtk.ToggleButton partialFilter {
+      label: "Partial";
+      group: allFilter;
+      css-classes: ["pill"];
+    }
+
+    Gtk.ToggleButton stoppedFilter {
+      label: "Stopped";
+      group: allFilter;
+      css-classes: ["pill"];
+    }
+
+    Gtk.ToggleButton pinnedFilter {
+      label: "Pinned";
+      group: allFilter;
+      css-classes: ["pill"];
+    }
   }
 
   Gtk.Stack contentStack {
@@ -135,13 +215,13 @@ template $OverviewPage: Gtk.Box {
         opacity: 0.5;
       }
 
-      Gtk.Label {
+      Gtk.Label emptyTitle {
         label: "No apps found";
         css-classes: ["title-2"];
         opacity: 0.7;
       }
 
-      Gtk.Label {
+      Gtk.Label emptyHint {
         label: "Add compose projects to your apps folder,\nor change it in Settings (hamburger menu).";
         css-classes: ["dim-label"];
         justify: center;

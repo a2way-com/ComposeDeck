@@ -1,6 +1,7 @@
 using Gtk;
 using Adw;
 using GLib;
+using Gdk;
 using Logic;
 
 namespace Views {
@@ -65,6 +66,21 @@ namespace Views {
             this.contentBox.append(this.contentArea);
 
             this.state.changed.connect(this.onStateChanged);
+
+            var shortcuts = new Gtk.EventControllerKey ();
+            shortcuts.key_pressed.connect ((keyval, keycode, mods) => {
+                bool ctrl = (mods & Gdk.ModifierType.CONTROL_MASK) != 0;
+                if (keyval == Gdk.Key.F5 || (ctrl && (keyval == Gdk.Key.r || keyval == Gdk.Key.R))) {
+                    Logic.ComposeDeck.discoverApps ();
+                    return true;
+                }
+                if (ctrl && (keyval == Gdk.Key.f || keyval == Gdk.Key.F)) {
+                    this.sidebar.search.grab_focus ();
+                    return true;
+                }
+                return false;
+            });
+            ((Gtk.Widget) this).add_controller (shortcuts);
         }
 
         /*

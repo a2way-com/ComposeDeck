@@ -169,7 +169,10 @@ namespace Views {
         private void onComposeClicked () {
             var selected = this.state.selectedApp;
             if (selected == null) return;
-            string[] composeFiles = { "compose.yaml", "docker-compose.yaml" };
+            string[] composeFiles = {
+                "compose.yaml", "compose.yml",
+                "docker-compose.yaml", "docker-compose.yml"
+            };
             foreach (var fname in composeFiles) {
                 var f = GLib.File.new_for_path(selected.path + "/" + fname);
                 if (f.query_exists()) {

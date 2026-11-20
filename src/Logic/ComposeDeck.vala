@@ -75,13 +75,23 @@ namespace Logic {
                     if (file.query_file_type(FileQueryInfoFlags.NOFOLLOW_SYMLINKS) != FileType.DIRECTORY)
                         continue;
 
-                    var yaml = File.new_for_path(path + "/compose.yaml");
-                    var yml = File.new_for_path(path + "/docker-compose.yaml");
-                    if (!yaml.query_exists() && !yml.query_exists())
+                    string[] composeNames = {
+                        "compose.yaml", "compose.yml",
+                        "docker-compose.yaml", "docker-compose.yml"
+                    };
+                    bool hasCompose = false;
+                    foreach (var composeName in composeNames) {
+                        if (File.new_for_path(path + "/" + composeName).query_exists()) {
+                            hasCompose = true;
+                            break;
+                        }
+                    }
+                    if (!hasCompose)
                         continue;
 
                     bool anyRunning = false;
-                    var services = ComposeService.listServices(path, out anyRunning);
+                    string projectName = ComposeDeck.composeProjectName (path);
+                    var services = ComposeService.listServices(path, projectName, out anyRunning);
                     int runningCount = 0;
                     foreach (var svc in services) {
                         if (svc.running) runningCount++;
@@ -106,6 +116,56 @@ namespace Logic {
                 if (a.name > b.name) return 1;
                 return 0;
             });
+        }
+
+        /*
+         * Reads the top-level "name:" from the compose file, falling back to
+         * the folder name. Podman labels containers with this project name.
+         */
+        private static string composeProjectName (string path) {
+            string fallback = GLib.Path.get_basename(path).down();
+            string[] composeNames = {
+                "compose.yaml", "compose.yml",
+                "docker-compose.yaml", "docker-compose.yml"
+            };
+            string? filePath = null;
+            foreach (var composeName in composeNames) {
+                string candidate = path + "/" + composeName;
+                if (File.new_for_path(candidate).query_exists ()) {
+                    filePath = candidate;
+                    break;
+                }
+            }
+            if (filePath == null) return fallback;
+
+            try {
+                uint8[] raw;
+                string etag;
+                File.new_for_path(filePath).load_contents (null, out raw, out etag);
+                string text = (string) raw;
+                foreach (var rawLine in text.split ("\n")) {
+                    if (rawLine.length == 0) continue;
+                    // Only top-level keys: no leading whitespace.
+                    if (rawLine[0] == ' ' || rawLine[0] == '\t') continue;
+                    if (!rawLine.has_prefix ("name")) continue;
+                    int colon = rawLine.index_of (":");
+                    if (colon < 0) continue;
+                    if (rawLine.substring (0, colon).strip () != "name") continue;
+                    string value = rawLine.substring (colon + 1).strip ();
+                    int comment = value.index_of (" #");
+                    if (comment >= 0) value = value.substring (0, comment).strip ();
+                    if (value.length >= 2) {
+                        if ((value[0] == '"' && value[value.length - 1] == '"') ||
+                            (value[0] == '\'' && value[value.length - 1] == '\'')) {
+                            value = value.substring (1, value.length - 2);
+                        }
+                    }
+                    if (value != "") return value;
+                }
+            } catch (Error e) {
+                // Fall back to the folder name.
+            }
+            return fallback;
         }
 
         public static void discoverApps () {

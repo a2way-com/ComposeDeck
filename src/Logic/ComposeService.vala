@@ -71,13 +71,11 @@ namespace Logic {
             return false;
         }
 
-        public static GLib.List<AppService> listServices (string path, out bool anyRunning) {
+        public static GLib.List<AppService> listServices (string path, string projectName, out bool anyRunning) {
             anyRunning = false;
             var result = new GLib.List<AppService>();
 
             if (!ComposeService.ensureService()) return result;
-
-            string projectName = GLib.Path.get_basename(path).down();
 
             string? sock = ComposeService.socketPath();
             if (sock == null) return result;
@@ -204,9 +202,9 @@ namespace Logic {
             }
         }
 
-        public static bool isRunning (string path) {
+        public static bool isRunning (string path, string projectName) {
             bool anyRunning = false;
-            ComposeService.listServices(path, out anyRunning);
+            ComposeService.listServices(path, projectName, out anyRunning);
             return anyRunning;
         }
 

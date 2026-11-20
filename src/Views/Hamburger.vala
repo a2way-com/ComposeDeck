@@ -151,7 +151,7 @@ namespace Views {
             about.application_icon = "com.a2way.ComposeDeck";
             about.developer_name = ComposeDeck.DEVELOPER_NAME;
             about.version = ComposeDeck.VERSION;
-            about.comments = "Manage Compose applications under ~/Apps/.";
+            about.comments = "Manage Compose applications from a configurable folder.";
             about.present(this.window);
         }
     }

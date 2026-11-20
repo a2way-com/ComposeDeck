@@ -171,9 +171,10 @@ namespace Views {
                 if (app.serviceCount > 0 && app.runningCount < app.serviceCount) hasStopped = true;
                 if (app.runningCount > 0) hasRunning = true;
             }
-            this.startAllButton.set_visible(!this.state.actionInProgress && hasStopped);
-            this.stopAllButton.set_visible(!this.state.actionInProgress && hasRunning);
-            this.restartAllButton.set_visible(!this.state.actionInProgress && this.state.apps.length() > 0);
+            bool reachable = this.state.podmanReachable;
+            this.startAllButton.set_visible(!this.state.actionInProgress && reachable && hasStopped);
+            this.stopAllButton.set_visible(!this.state.actionInProgress && reachable && hasRunning);
+            this.restartAllButton.set_visible(!this.state.actionInProgress && reachable && this.state.apps.length() > 0);
             this.bulkSpinner.set_visible(this.state.actionInProgress);
         }
 

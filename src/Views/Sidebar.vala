@@ -14,6 +14,7 @@ namespace Views {
         [GtkChild] public unowned Gtk.SearchEntry search;
         [GtkChild] public unowned Gtk.ListBox listBox;
         [GtkChild] public unowned Gtk.MenuButton menuButton;
+        [GtkChild] private unowned Gtk.Label noResults;
 
         private Logic.State state;
 
@@ -35,6 +36,19 @@ namespace Views {
                        appRow.app.path.down().contains(term);
             });
             this.listBox.invalidate_filter();
+
+            if (term == "") {
+                this.noResults.set_visible (false);
+                return;
+            }
+            bool anyMatch = false;
+            foreach (var app in this.state.apps) {
+                if (app.name.down().contains(term) || app.path.down().contains(term)) {
+                    anyMatch = true;
+                    break;
+                }
+            }
+            this.noResults.set_visible (!anyMatch);
         }
 
         private void onRowActivated (Gtk.ListBox box, Gtk.ListBoxRow row) {
@@ -77,6 +91,8 @@ namespace Views {
                     this.listBox.select_row(appRow);
                 }
             }
+
+            this.onSearchChanged ();
         }
     }
 }

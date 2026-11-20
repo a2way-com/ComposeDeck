@@ -33,6 +33,14 @@ template $Sidebar: Gtk.Box {
     hexpand: true;
   }
 
+  Gtk.Label noResults {
+    label: "No matching apps";
+    css-classes: ["dim-label"];
+    margin-top: 12;
+    margin-bottom: 12;
+    visible: false;
+  }
+
   Gtk.ScrolledWindow {
     hscrollbar-policy: never;
     vscrollbar-policy: automatic;

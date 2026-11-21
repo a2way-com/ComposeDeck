@@ -18,7 +18,7 @@ jobs:
       options: --privileged
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Ensure Flathub remote
         shell: bash
@@ -34,7 +34,7 @@ jobs:
           desktop-file-validate data/com.a2way.ComposeDeck.desktop
 
       - name: Cache Flatpak build
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.local/share/flatpak
@@ -65,7 +65,7 @@ jobs:
             repo ComposeDeck-x86_64.flatpak com.a2way.ComposeDeck stable
 
       - name: Upload bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ComposeDeck-x86_64
           path: ComposeDeck-x86_64.flatpak

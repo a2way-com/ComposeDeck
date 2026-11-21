@@ -24,7 +24,7 @@ jobs:
       options: --privileged
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Ensure Flathub remote
         shell: bash
@@ -91,7 +91,7 @@ jobs:
           fi
 
       - name: Cache Flatpak build
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.local/share/flatpak
@@ -144,7 +144,7 @@ jobs:
           gpg --export "$GPG_KEY_ID" > public-key.gpg
 
       - name: Upload repository
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: flatpak-repo
           path: |
@@ -162,16 +162,16 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download repository
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: flatpak-repo
 
       - name: Configure Pages
         id: pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Assemble site
         shell: bash
@@ -211,10 +211,10 @@ jobs:
             > public/index.html
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: public
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

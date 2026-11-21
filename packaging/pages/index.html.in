@@ -137,7 +137,7 @@
     </div>
 
     <h2>Install from the terminal</h2>
-    <pre><code>flatpak install --user --from __BASE_URL__/com.a2way.ComposeDeck.flatpakref</code></pre>
+    <pre><code>flatpak install --from __BASE_URL__/com.a2way.ComposeDeck.flatpakref</code></pre>
     <p>Updates are delivered through <code>flatpak update</code>.</p>
 
     <h2>Requirements</h2>

@@ -143,10 +143,12 @@
     <h2>Requirements</h2>
     <ul>
       <li>Flatpak, with the Flathub remote available for the GNOME runtime.</li>
-      <li>Podman, with the Docker-compatible socket enabled:<br>
-        <code>systemctl --user enable --now podman.socket</code></li>
+      <li>Podman. ComposeDeck starts the Podman API service on demand.</li>
       <li>Your Compose projects in <code>~/Apps</code>, or another folder chosen in Settings.</li>
     </ul>
+
+    <p>If your environment blocks the on-demand service start, enable the socket manually:</p>
+    <pre><code>systemctl --user enable --now podman.socket</code></pre>
 
     <footer>
       <a href="__REPO_URL__">ComposeDeck</a> · MIT licensed

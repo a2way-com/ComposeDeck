@@ -9,13 +9,15 @@ lets you start, stop, and restart individual apps or all of them at once.
 ## Requirements
 
 - Flatpak, with the Flathub remote available for the GNOME runtime.
-- Podman, with the Docker-compatible socket enabled:
-
-  ```sh
-  systemctl --user enable --now podman.socket
-  ```
-
+- Podman. ComposeDeck starts the Podman API service on demand.
 - Compose projects in `~/Apps`, or another folder configured in Settings.
+
+If your environment blocks the on-demand service start, enable the socket
+manually:
+
+```sh
+systemctl --user enable --now podman.socket
+```
 
 ## Install
 

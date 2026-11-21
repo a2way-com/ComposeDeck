@@ -15,6 +15,7 @@ namespace Views {
     public class AppDetailsPage : Gtk.Box {
         [GtkChild] private unowned Adw.ActionRow pathRow;
         [GtkChild] private unowned Adw.ActionRow statusRow;
+        [GtkChild] private unowned Gtk.Label refreshedLabel;
         [GtkChild] private unowned Adw.ActionRow actionsRow;
         [GtkChild] private unowned Gtk.Button openButton;
         [GtkChild] private unowned Gtk.Button pathCopyButton;
@@ -78,15 +79,6 @@ namespace Views {
 
             pathRow.set_subtitle(selected.path);
 
-            int64 now = GLib.get_monotonic_time() / 1000 / 1000;
-            int64 age = now - this.state.lastUpdated;
-            string ageText = age < 60
-                ? "just now"
-                : age < 3600
-                    ? "%d s ago".printf((int) age)
-                    : "%d min ago".printf((int) (age / 60));
-            pathRow.set_tooltip_text("Last refreshed %s".printf(ageText));
-
             int runningCount = selected.runningCount;
             int serviceCount = selected.serviceCount;
             string statusText;
@@ -106,6 +98,20 @@ namespace Views {
             }
             string markup = "<span foreground='%s' size='large'>●</span> %s".printf(dotColor, statusText);
             statusRow.set_subtitle(markup);
+
+            if (this.state.lastUpdated == 0) {
+                this.refreshedLabel.set_text ("");
+            } else {
+                int64 now = GLib.get_monotonic_time() / 1000 / 1000;
+                int64 age = now - this.state.lastUpdated;
+                if (age <= 1) {
+                    this.refreshedLabel.set_text ("Updated just now");
+                } else if (age < 60) {
+                    this.refreshedLabel.set_text ("Updated %d s ago".printf ((int) age));
+                } else {
+                    this.refreshedLabel.set_text ("Updated %d min ago".printf ((int) (age / 60)));
+                }
+            }
 
             bool busy = this.state.actionInProgress;
             this.startButton.set_visible(!busy && !selected.running);

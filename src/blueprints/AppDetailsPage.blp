@@ -52,6 +52,11 @@ template $AppDetailsPage: Gtk.Box {
     Adw.ActionRow statusRow {
       title: "Status";
       use-markup: true;
+
+      Gtk.Label refreshedLabel {
+        css-classes: ["caption", "dim-label"];
+        valign: center;
+      }
     }
 
     Adw.ActionRow actionsRow {

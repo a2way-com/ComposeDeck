@@ -12,9 +12,17 @@ template $ContentArea: Gtk.Box {
     };
   }
 
-  Gtk.Box contentBox {
-    orientation: vertical;
+  Gtk.ScrolledWindow {
     hexpand: true;
     vexpand: true;
+    hscrollbar-policy: never;
+    vscrollbar-policy: automatic;
+    overlay-scrolling: false;
+
+    child: Gtk.Box contentBox {
+      orientation: vertical;
+      hexpand: true;
+      vexpand: true;
+    };
   }
 }

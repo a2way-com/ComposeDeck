@@ -1,0 +1,196 @@
+name: Pages
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build repository
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-51
+      options: --privileged
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Ensure Flathub remote
+        shell: bash
+        run: |
+          flatpak remote-add --if-not-exists --system flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
+
+      - name: Validate metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          appstreamcli validate --no-net data/com.a2way.ComposeDeck.metainfo.xml
+          desktop-file-validate data/com.a2way.ComposeDeck.desktop
+
+      - name: Check version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(sed -n 's/.*public const string VERSION = "\([^"]*\)".*/\1/p' src/Logic/ComposeDeck.vala)
+          if [ -z "$VERSION" ]; then
+            echo "Could not read VERSION from src/Logic/ComposeDeck.vala" >&2
+            exit 1
+          fi
+          if ! grep -q "version=\"${VERSION}\"" data/com.a2way.ComposeDeck.metainfo.xml; then
+            echo "Metainfo has no release entry for ${VERSION}" >&2
+            exit 1
+          fi
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            TAG="${GITHUB_REF_NAME#v}"
+            if [ "$VERSION" != "$TAG" ]; then
+              echo "Tag ${GITHUB_REF_NAME} does not match VERSION ${VERSION}" >&2
+              exit 1
+            fi
+          fi
+
+      - name: Import signing key
+        shell: bash
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+          GPG_KEY_GRIP: ${{ secrets.GPG_KEY_GRIP }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GPG_PRIVATE_KEY:-}" ] || [ -z "${GPG_KEY_ID:-}" ] || [ -z "${GPG_KEY_GRIP:-}" ]; then
+            echo "Missing GPG_PRIVATE_KEY, GPG_KEY_ID, or GPG_KEY_GRIP repository secret." >&2
+            exit 1
+          fi
+          mkdir -p ~/.gnupg
+          chmod 700 ~/.gnupg
+          printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          echo "allow-preset-passphrase" >> ~/.gnupg/gpg-agent.conf
+          gpg-connect-agent reloadagent /bye
+          if [ -n "${GPG_PASSPHRASE:-}" ]; then
+            PRESET=$(command -v gpg-preset-passphrase || true)
+            if [ -z "$PRESET" ]; then
+              PRESET=$(find /usr -type f -name gpg-preset-passphrase 2>/dev/null | head -n 1 || true)
+            fi
+            if [ -z "$PRESET" ]; then
+              echo "gpg-preset-passphrase not found." >&2
+              exit 1
+            fi
+            printf '%s' "$GPG_PASSPHRASE" | "$PRESET" --preset "$GPG_KEY_GRIP"
+          fi
+
+      - name: Build Flatpak repository
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          manifest-path: com.a2way.ComposeDeck.json
+          build-bundle: false
+          branch: stable
+          repo-dir: repo
+          cache-key: flatpak-builder-${{ github.sha }}
+          gpg-sign: ${{ secrets.GPG_KEY_ID }}
+          upload-artifact: false
+
+      - name: Update and sign repository
+        shell: bash
+        env:
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GPG_KEY_ID:-}" ]; then
+            echo "Missing GPG_KEY_ID repository secret." >&2
+            exit 1
+          fi
+          flatpak build-update-repo \
+            --gpg-sign="$GPG_KEY_ID" \
+            --generate-static-deltas \
+            --prune \
+            repo/
+          rm -rf repo/tmp repo/.lock
+          gpg --export "$GPG_KEY_ID" > public-key.gpg
+
+      - name: Upload repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-repo
+          path: |
+            repo
+            public-key.gpg
+          if-no-files-found: error
+          retention-days: 1
+
+  deploy:
+    name: Deploy to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Download repository
+        uses: actions/download-artifact@v4
+        with:
+          name: flatpak-repo
+
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Assemble site
+        shell: bash
+        env:
+          BASE_URL: ${{ steps.pages.outputs.base_url }}
+          REPO_URL: https://github.com/${{ github.repository }}
+        run: |
+          set -euo pipefail
+          BASE_URL="${BASE_URL%/}"
+          GPG_KEY=$(base64 -w0 public-key.gpg)
+          VERSION=$(sed -n 's/.*public const string VERSION = "\([^"]*\)".*/\1/p' src/Logic/ComposeDeck.vala)
+
+          mkdir -p public
+          cp -a repo public/repo
+          cp data/icons/hicolor/scalable/apps/com.a2way.ComposeDeck.svg public/
+          touch public/.nojekyll
+
+          sed \
+            -e "s|__BASE_URL__|${BASE_URL}|g" \
+            -e "s|__REPO_URL__|${REPO_URL}|g" \
+            -e "s|__GPG_KEY__|${GPG_KEY}|g" \
+            packaging/pages/com.a2way.ComposeDeck.flatpakref.in \
+            > public/com.a2way.ComposeDeck.flatpakref
+
+          sed \
+            -e "s|__BASE_URL__|${BASE_URL}|g" \
+            -e "s|__REPO_URL__|${REPO_URL}|g" \
+            -e "s|__GPG_KEY__|${GPG_KEY}|g" \
+            packaging/pages/com.a2way.ComposeDeck.flatpakrepo.in \
+            > public/com.a2way.ComposeDeck.flatpakrepo
+
+          sed \
+            -e "s|__BASE_URL__|${BASE_URL}|g" \
+            -e "s|__REPO_URL__|${REPO_URL}|g" \
+            -e "s|__VERSION__|${VERSION}|g" \
+            packaging/pages/index.html.in \
+            > public/index.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

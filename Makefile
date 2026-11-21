@@ -56,23 +56,35 @@ $(BINARY): $(VALA_SOURCES) $(GRESOURCE_C) $(UI_FILES) $(BLP_FILES)
 run: $(BINARY)
 	./$(BINARY)
 
-.PHONY: flatpak-build flatpak-run
+.PHONY: flatpak-build flatpak-run bundle flatpak-repo
 
 flatpak-build: $(BLP_FILES)
 	@rm -rf build
 	@flatpak build-init build com.a2way.ComposeDeck org.gnome.Sdk//51 org.gnome.Platform//51 >/dev/null 2>&1
 	@mkdir -p build/files
-	@cp $(VALA_LOGIC) $(VALA_VIEWS) $(BLP_FILES) build.sh build/files/
-	@flatpak build build sh -c "sh /app/build.sh"
+	@cp -r src data build.sh LICENSE build/files/
+	@flatpak build build sh -c "FLATPAK_DEST=/app sh /app/build.sh"
 	@args=$$(python3 -c 'import json; print(" ".join(json.load(open("com.a2way.ComposeDeck.json"))["finish-args"]))'); \
 	flatpak build-finish build --command=composedeck $$args
 	@echo "Build complete: build/files/bin/composedeck"
 
 flatpak-run: flatpak-build
-	@flatpak build-export repo build >/dev/null 2>&1
+	@flatpak build-export repo build stable >/dev/null 2>&1
+	@flatpak remote-add --user --if-not-exists --no-gpg-verify localrepo file://$(CURDIR)/repo >/dev/null 2>&1 || true
 	@flatpak uninstall --user --assumeyes com.a2way.ComposeDeck >/dev/null 2>&1 || true
-	@flatpak install --user --assumeyes localrepo com.a2way.ComposeDeck >/dev/null 2>&1
-	@flatpak run --user com.a2way.ComposeDeck
+	@flatpak install --user --assumeyes localrepo com.a2way.ComposeDeck//stable >/dev/null 2>&1
+	@flatpak run --user com.a2way.ComposeDeck//stable
+
+bundle: flatpak-build
+	@flatpak build-export repo build stable >/dev/null 2>&1
+	@flatpak build-bundle --runtime-repo=https://flathub.org/repo/flathub.flatpakrepo \
+		repo ComposeDeck-x86_64.flatpak com.a2way.ComposeDeck stable
+	@echo "Bundle: ComposeDeck-x86_64.flatpak"
+
+flatpak-repo: flatpak-build
+	@flatpak build-export repo build stable >/dev/null 2>&1
+	@flatpak build-update-repo --generate-static-deltas --prune repo >/dev/null 2>&1
+	@echo "Repository: repo/"
 
 clean:
-	rm -rf build
+	rm -rf build ComposeDeck-x86_64.flatpak

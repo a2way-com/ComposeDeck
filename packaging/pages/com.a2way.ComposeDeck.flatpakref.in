@@ -1,0 +1,11 @@
+[Flatpak Ref]
+Title=ComposeDeck
+Name=com.a2way.ComposeDeck
+Branch=stable
+Url=__BASE_URL__/repo/
+SuggestRemoteName=composedeck
+Homepage=__REPO_URL__
+Icon=__BASE_URL__/com.a2way.ComposeDeck.svg
+RuntimeRepo=https://flathub.org/repo/flathub.flatpakrepo
+IsRuntime=false
+GPGKey=__GPG_KEY__

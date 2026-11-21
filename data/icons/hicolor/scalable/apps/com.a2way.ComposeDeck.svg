@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+
+  <defs>
+    <filter id="composedeck-shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#1E1B18" flood-opacity=".22"/>
+    </filter>
+    <linearGradient id="composedeck-back" x1="0" y1="0" x2="0.38" y2="1">
+      <stop offset="0" stop-color="#EF5350"/>
+      <stop offset="1" stop-color="#C62828"/>
+    </linearGradient>
+    <linearGradient id="composedeck-middle" x1="0" y1="0" x2="0.38" y2="1">
+      <stop offset="0" stop-color="#FFB74D"/>
+      <stop offset="1" stop-color="#EF6C00"/>
+    </linearGradient>
+    <linearGradient id="composedeck-front" x1="0" y1="0" x2="0.38" y2="1">
+      <stop offset="0" stop-color="#66BB6A"/>
+      <stop offset="1" stop-color="#2E7D32"/>
+    </linearGradient>
+    <linearGradient id="composedeck-gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+<g transform="translate(512 512) scale(1.2) translate(-512 -512)">
+<g transform="translate(328 438) rotate(-13)" filter="url(#composedeck-shadow)"><rect x="-170" y="-235" width="340" height="470" rx="56" fill="url(#composedeck-back)"/><rect x="-168.5" y="-233.5" width="337" height="467" rx="54.5" fill="none" stroke="#000000" stroke-opacity=".08" stroke-width="3"/><rect x="-170" y="-235" width="340" height="470" rx="56" fill="url(#composedeck-gloss)"/><g transform="translate(-118 -177)"><rect x="-15.12" y="-21.00" width="11.52" height="42.00" rx="5.76" fill="#FFFFFF"/><rect x="3.60" y="-21.00" width="11.52" height="42.00" rx="5.76" fill="#FFFFFF"/></g><g transform="translate(0 25)"><path d="M -122 -36 L -92 -66 L 138 -66 L 108 -36 Z" fill="#FFFFFF" opacity=".94"/><path d="M -122 -36 L 108 -36 L 108 4 L -122 4 Z" fill="#FFFFFF" opacity=".62"/><path d="M 108 -36 L 138 -66 L 138 -26 L 108 4 Z" fill="#FFFFFF" opacity=".38"/><path d="M -122 22 L -92 -8 L 138 -8 L 108 22 Z" fill="#FFFFFF" opacity=".94"/><path d="M -122 22 L 108 22 L 108 62 L -122 62 Z" fill="#FFFFFF" opacity=".62"/><path d="M 108 22 L 138 -8 L 138 32 L 108 62 Z" fill="#FFFFFF" opacity=".38"/><path d="M -122 80 L -92 50 L 138 50 L 108 80 Z" fill="#FFFFFF" opacity=".94"/><path d="M -122 80 L 108 80 L 108 120 L -122 120 Z" fill="#FFFFFF" opacity=".62"/><path d="M 108 80 L 138 50 L 138 90 L 108 120 Z" fill="#FFFFFF" opacity=".38"/></g></g>
+<g transform="translate(480 478) rotate(0)" filter="url(#composedeck-shadow)"><rect x="-170" y="-235" width="340" height="470" rx="56" fill="url(#composedeck-middle)"/><rect x="-168.5" y="-233.5" width="337" height="467" rx="54.5" fill="none" stroke="#000000" stroke-opacity=".08" stroke-width="3"/><rect x="-170" y="-235" width="340" height="470" rx="56" fill="url(#composedeck-gloss)"/><g transform="translate(-118 -177)"><circle cx="0" cy="0" r="24" fill="none" stroke="#FFFFFF" stroke-width="3.84"/><path d="M 0 -24 A 24 24 0 0 0 0 24 Z" fill="#FFFFFF"/></g><g transform="translate(0 25)"><path d="M -122 -36 L -92 -66 L 138 -66 L 108 -36 Z" fill="#FFFFFF" opacity=".94"/><path d="M -122 -36 L 108 -36 L 108 4 L -122 4 Z" fill="#FFFFFF" opacity=".62"/><path d="M 108 -36 L 138 -66 L 138 -26 L 108 4 Z" fill="#FFFFFF" opacity=".38"/><path d="M -122 22 L -92 -8 L 138 -8 L 108 22 Z" fill="#FFFFFF" opacity=".94"/><path d="M -122 22 L 108 22 L 108 62 L -122 62 Z" fill="#FFFFFF" opacity=".62"/><path d="M 108 22 L 138 -8 L 138 32 L 108 62 Z" fill="#FFFFFF" opacity=".38"/><path d="M -122 80 L -92 50 L 138 50 L 108 80 Z" fill="#FFFFFF" opacity=".94"/><path d="M -122 80 L 108 80 L 108 120 L -122 120 Z" fill="#FFFFFF" opacity=".62"/><path d="M 108 80 L 138 50 L 138 90 L 108 120 Z" fill="#FFFFFF" opacity=".38"/></g></g>
+<g transform="translate(632 518) rotate(13)" filter="url(#composedeck-shadow)"><rect x="-170" y="-235" width="340" height="470" rx="56" fill="url(#composedeck-front)"/><rect x="-168.5" y="-233.5" width="337" height="467" rx="54.5" fill="none" stroke="#000000" stroke-opacity=".08" stroke-width="3"/><rect x="-170" y="-235" width="340" height="470" rx="56" fill="url(#composedeck-gloss)"/><g transform="translate(-118 -177)"><path d="M -15.64 -21.00 L 23.00 0.00 L -15.64 21.00 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="5.88" stroke-linejoin="round"/></g><g transform="translate(0 25)"><path d="M -122 -36 L -92 -66 L 138 -66 L 108 -36 Z" fill="#FFFFFF" opacity=".94"/><path d="M -122 -36 L 108 -36 L 108 4 L -122 4 Z" fill="#FFFFFF" opacity=".62"/><path d="M 108 -36 L 138 -66 L 138 -26 L 108 4 Z" fill="#FFFFFF" opacity=".38"/><path d="M -122 22 L -92 -8 L 138 -8 L 108 22 Z" fill="#FFFFFF" opacity=".94"/><path d="M -122 22 L 108 22 L 108 62 L -122 62 Z" fill="#FFFFFF" opacity=".62"/><path d="M 108 22 L 138 -8 L 138 32 L 108 62 Z" fill="#FFFFFF" opacity=".38"/><path d="M -122 80 L -92 50 L 138 50 L 108 80 Z" fill="#FFFFFF" opacity=".94"/><path d="M -122 80 L 108 80 L 108 120 L -122 120 Z" fill="#FFFFFF" opacity=".62"/><path d="M 108 80 L 138 50 L 138 90 L 108 120 Z" fill="#FFFFFF" opacity=".38"/></g></g>
+</g>
+</svg>

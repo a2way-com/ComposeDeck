@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=ComposeDeck
+GenericName=Compose Project Manager
+Comment=Manage Docker Compose projects with Podman
+Exec=composedeck
+Icon=com.a2way.ComposeDeck
+Terminal=false
+Categories=Development;
+Keywords=podman;docker;compose;containers;
+StartupNotify=true
+StartupWMClass=com.a2way.ComposeDeck

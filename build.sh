@@ -1,39 +1,65 @@
 #!/bin/sh
-set -e
-cd /app
+set -eu
 
-# Flatten namespaced source trees into /app so the flat globs below work.
-mkdir -p /app/.srcflat
-for d in src/Logic src/Views; do
-    [ -d "$d" ] || continue
-    cp "$d"/*.vala /app/ 2>/dev/null || true
-done
-if [ -d src/blueprints ]; then
-    cp src/blueprints/*.blp /app/ 2>/dev/null || true
-fi
+SRCDIR=$(unset CDPATH; cd -- "$(dirname -- "$0")" && pwd)
+BUILDDIR=$(mktemp -d "${TMPDIR:-/tmp}/composedeck-build.XXXXXX")
+trap 'rm -rf "$BUILDDIR"' EXIT HUP INT TERM
+
+mkdir -p "$BUILDDIR/ui" "$BUILDDIR/c" "$BUILDDIR/bin"
 
 # Compile Blueprint (.blp) sources into GtkBuilder (.ui) files.
-for f in *.blp; do
-    [ -e "$f" ] || continue
-    blueprint-compiler compile "$f" --output "${f%.blp}.ui"
+for blueprint in "$SRCDIR"/src/blueprints/*.blp; do
+    [ -e "$blueprint" ] || continue
+    name=$(basename "$blueprint" .blp)
+    blueprint-compiler compile "$blueprint" --output "$BUILDDIR/ui/$name.ui"
 done
 
 # Generate the GResource manifest listing every compiled .ui file.
-echo '<?xml version="1.0" encoding="UTF-8"?>' > compose-deck.gresource.xml
-echo '<gresources>' >> compose-deck.gresource.xml
-echo '  <gresource prefix="/com/a2way/ComposeDeck">' >> compose-deck.gresource.xml
-for f in *.ui; do
-    echo "    <file>$f</file>" >> compose-deck.gresource.xml
-done
-echo '  </gresource>' >> compose-deck.gresource.xml
-echo '</gresources>' >> compose-deck.gresource.xml
+{
+    echo '<?xml version="1.0" encoding="UTF-8"?>'
+    echo '<gresources>'
+    echo '  <gresource prefix="/com/a2way/ComposeDeck">'
+    for ui in "$BUILDDIR"/ui/*.ui; do
+        [ -e "$ui" ] || continue
+        echo "    <file>$(basename "$ui")</file>"
+    done
+    echo '  </gresource>'
+    echo '</gresources>'
+} > "$BUILDDIR/compose-deck.gresource.xml"
 
 # Compile the GResource bundle into C.
-glib-compile-resources --sourcedir=/app --generate-source \
-    --target=/app/compose-deck.c /app/compose-deck.gresource.xml
+glib-compile-resources --sourcedir="$BUILDDIR/ui" --generate-source \
+    --target="$BUILDDIR/compose-deck.c" "$BUILDDIR/compose-deck.gresource.xml"
 
-# Compile all Vala sources (autoloaded via *.vala).
-mkdir -p /app/bin
+# Compile all Vala sources.
 valac --pkg gtk4 --pkg gio-2.0 --pkg gio-unix-2.0 --pkg libadwaita-1 \
-    --pkg json-glib-1.0 --gresources=/app/compose-deck.gresource.xml \
-    --gresourcesdir=/app /app/compose-deck.c /app/*.vala -o /app/bin/composedeck
+    --pkg json-glib-1.0 \
+    --directory="$BUILDDIR/c" \
+    --gresources="$BUILDDIR/compose-deck.gresource.xml" \
+    --gresourcesdir="$BUILDDIR/ui" \
+    "$BUILDDIR/compose-deck.c" \
+    "$SRCDIR"/src/Logic/*.vala \
+    "$SRCDIR"/src/Views/*.vala \
+    -o "$BUILDDIR/bin/composedeck"
+
+# flatpak-builder sets FLATPAK_DEST. The local flatpak-build target in the
+# Makefile sets it to /app; a plain local run installs under build/install.
+if [ -n "${FLATPAK_DEST:-}" ]; then
+    DEST="$FLATPAK_DEST"
+elif [ -d /app ] && [ -w /app ]; then
+    DEST=/app
+else
+    DEST="$SRCDIR/build/install"
+fi
+
+install -Dm755 "$BUILDDIR/bin/composedeck" "$DEST/bin/composedeck"
+install -Dm644 "$SRCDIR/data/com.a2way.ComposeDeck.desktop" \
+    "$DEST/share/applications/com.a2way.ComposeDeck.desktop"
+install -Dm644 "$SRCDIR/data/com.a2way.ComposeDeck.metainfo.xml" \
+    "$DEST/share/metainfo/com.a2way.ComposeDeck.metainfo.xml"
+install -Dm644 "$SRCDIR/data/icons/hicolor/scalable/apps/com.a2way.ComposeDeck.svg" \
+    "$DEST/share/icons/hicolor/scalable/apps/com.a2way.ComposeDeck.svg"
+install -Dm644 "$SRCDIR/LICENSE" \
+    "$DEST/share/licenses/com.a2way.ComposeDeck/LICENSE"
+
+echo "Installed ComposeDeck to $DEST"

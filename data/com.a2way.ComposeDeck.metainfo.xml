@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.a2way.ComposeDeck</id>
+  <name>ComposeDeck</name>
+  <summary>Manage Docker Compose projects with Podman</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+
+  <developer id="com.a2way">
+    <name>a2way</name>
+  </developer>
+
+  <description>
+    <p>ComposeDeck is a desktop app for managing Docker Compose projects running on Podman.</p>
+    <p>It scans a folder for compose projects, shows which services are running, and lets you start, stop, and restart individual apps or all of them at once.</p>
+    <p>Features include:</p>
+    <ul>
+      <li>Overview of all compose projects with running, stopped, and partial states</li>
+      <li>Per-project service list with health, ports, and logs</li>
+      <li>Start, stop, and restart controls for single services or whole projects</li>
+      <li>Search, filters, and pinned projects</li>
+    </ul>
+    <p>ComposeDeck talks directly to the Podman API socket and does not require a separate Compose binary.</p>
+  </description>
+
+  <launchable type="desktop-id">com.a2way.ComposeDeck.desktop</launchable>
+
+  <url type="homepage">https://github.com/a2way-com/ComposeDeck</url>
+  <url type="bugtracker">https://github.com/a2way-com/ComposeDeck/issues</url>
+  <url type="vcs-browser">https://github.com/a2way-com/ComposeDeck</url>
+
+  <provides>
+    <binary>composedeck</binary>
+  </provides>
+
+  <categories>
+    <category>Development</category>
+    <category>System</category>
+  </categories>
+
+  <keywords>
+    <keyword>podman</keyword>
+    <keyword>docker</keyword>
+    <keyword>compose</keyword>
+    <keyword>containers</keyword>
+    <keyword>services</keyword>
+  </keywords>
+
+  <content_rating type="oars-1.1"/>
+
+  <releases>
+    <release version="0.1.0" date="2026-11-20">
+      <description>
+        <p>Initial release.</p>
+      </description>
+    </release>
+  </releases>
+</component>

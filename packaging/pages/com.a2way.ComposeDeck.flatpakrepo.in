@@ -1,0 +1,8 @@
+[Flatpak Repo]
+Title=ComposeDeck
+Url=__BASE_URL__/repo/
+Homepage=__REPO_URL__
+Comment=Manage Docker Compose projects with Podman
+Description=ComposeDeck is a desktop app for managing Docker Compose projects running on Podman.
+Icon=__BASE_URL__/com.a2way.ComposeDeck.svg
+GPGKey=__GPG_KEY__

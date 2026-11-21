@@ -25,6 +25,20 @@ namespace Views {
         public Window (Adw.Application app) {
             this.set_application(app);
             this.state = Logic.Application.getState();
+            this.set_default_size (this.state.windowWidth, this.state.windowHeight);
+
+            this.close_request.connect (() => {
+                if (!this.is_maximized ()) {
+                    int width = this.get_width ();
+                    int height = this.get_height ();
+                    if (width > 0 && height > 0) {
+                        this.state.windowWidth = width;
+                        this.state.windowHeight = height;
+                        this.state.saveSettings ();
+                    }
+                }
+                return false;
+            });
 
             // Style overview cards: background without hover highlight.
             var css = new Gtk.CssProvider();

@@ -292,7 +292,7 @@ namespace Logic {
          * Docker-compatible API returns a multiplexed stream with 8-byte
          * headers per frame; we strip those and concatenate the payload.
          */
-        public static string? containerLogs (string name) {
+        public static string? containerLogs (string name, int tail = 200) {
             string? sock = ComposeService.socketPath();
             if (sock == null) return null;
             if (!ComposeService.canConnect(sock)) return null;
@@ -303,7 +303,8 @@ namespace Logic {
                 socket.connect(addr, null);
                 socket.set_timeout(10);
 
-                string request = "GET /containers/" + name + "/logs?stdout=1&stderr=1&tail=200 HTTP/1.0\r\nHost: localhost\r\n\r\n";
+                string tailParam = tail > 0 ? tail.to_string () : "all";
+                string request = "GET /containers/" + name + "/logs?stdout=1&stderr=1&tail=" + tailParam + " HTTP/1.0\r\nHost: localhost\r\n\r\n";
                 socket.send(request.data, null);
 
                 var buf = new uint8[65536];
@@ -357,6 +358,38 @@ namespace Logic {
                 return result.str;
             } catch (Error e) {
                 return null;
+            }
+        }
+
+        /*
+         * Runs `podman compose up -d` on the host via flatpak-spawn. Used
+         * when the compose file declares services that have no containers.
+         */
+        public static bool composeUp (string path) {
+            string[] composeNames = {
+                "compose.yaml", "compose.yml",
+                "docker-compose.yaml", "docker-compose.yml"
+            };
+            string? filePath = null;
+            foreach (var composeName in composeNames) {
+                string candidate = path + "/" + composeName;
+                if (GLib.File.new_for_path(candidate).query_exists ()) {
+                    filePath = candidate;
+                    break;
+                }
+            }
+            if (filePath == null) return false;
+
+            string[] argv = {
+                "flatpak-spawn", "--host", "podman", "compose",
+                "-f", filePath, "up", "-d"
+            };
+            try {
+                var process = new GLib.Subprocess.newv (argv, (GLib.SubprocessFlags) 0);
+                process.wait (null);
+                return process.get_exit_status () == 0;
+            } catch (Error e) {
+                return false;
             }
         }
 

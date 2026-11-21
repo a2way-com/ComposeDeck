@@ -20,6 +20,7 @@ namespace Views {
         private Logic.ComposeApp app;
         private List<Adw.PreferencesRow> rows = new List<Adw.PreferencesRow> ();
         private Gtk.Window? parentWindow;
+        private int logsGeneration = 0;
 
         public AppServiceSection (Logic.AppService service, Logic.ComposeApp app, Gtk.Window? parentWindow = null) {
             this.service = service;
@@ -48,24 +49,28 @@ namespace Views {
             headerRow.set_subtitle (subtitle);
 
             var dotLabel = new Gtk.Label (null);
-            string dotColor = this.service.running ? "#4CAF50" : "#F44336";
+            string dotColor = this.service.running
+                ? "#4CAF50"
+                : (this.service.statusText == "Not created" ? "#9E9E9E" : "#F44336");
             dotLabel.set_markup ("<span foreground='%s'>●</span>".printf (dotColor));
             dotLabel.set_valign (Gtk.Align.CENTER);
             headerRow.add_prefix (dotLabel);
 
-            var logsButton = new Gtk.Button ();
-            var logsIcon = new Gtk.Image ();
-            logsIcon.icon_name = "utilities-terminal-symbolic";
-            logsIcon.set_pixel_size (16);
-            logsButton.set_child (logsIcon);
-            logsButton.set_hexpand (false);
-            logsButton.set_valign (Gtk.Align.CENTER);
-            logsButton.set_css_classes (new string[] { "flat" });
-            logsButton.set_tooltip_text ("Show logs");
-            logsButton.clicked.connect (() => {
-                this.showLogsDialog ();
-            });
-            headerRow.add_suffix (logsButton);
+            if (this.service.containerName != "") {
+                var logsButton = new Gtk.Button ();
+                var logsIcon = new Gtk.Image ();
+                logsIcon.icon_name = "utilities-terminal-symbolic";
+                logsIcon.set_pixel_size (16);
+                logsButton.set_child (logsIcon);
+                logsButton.set_hexpand (false);
+                logsButton.set_valign (Gtk.Align.CENTER);
+                logsButton.set_css_classes (new string[] { "flat" });
+                logsButton.set_tooltip_text ("Show logs");
+                logsButton.clicked.connect (() => {
+                    this.showLogsDialog ();
+                });
+                headerRow.add_suffix (logsButton);
+            }
 
             group.add (headerRow);
             this.rows.append (headerRow);
@@ -514,7 +519,20 @@ namespace Views {
 
             var dialog = new Adw.MessageDialog (null, "Logs — %s".printf (serviceName), null);
             dialog.set_modal (true);
-            dialog.set_heading ("Logs — %s".printf (serviceName));
+
+            var box = new Gtk.Box (Gtk.Orientation.VERTICAL, 8);
+
+            var controls = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 6);
+            var tailDrop = new Gtk.DropDown.from_strings (new string[] { "200 lines", "1000 lines", "All" });
+            tailDrop.set_selected (0);
+            var refresh = this.makeLogButton ("view-refresh-symbolic", "Refresh");
+            var copy = this.makeLogButton ("edit-copy-symbolic", "Copy all");
+            var save = this.makeLogButton ("document-save-symbolic", "Save to file");
+            controls.append (tailDrop);
+            controls.append (refresh);
+            controls.append (copy);
+            controls.append (save);
+            box.append (controls);
 
             var scrolled = new Gtk.ScrolledWindow ();
             scrolled.set_vexpand (true);
@@ -526,29 +544,107 @@ namespace Views {
             view.set_editable (false);
             view.set_cursor_visible (false);
             view.set_monospace (true);
-            view.get_buffer ().set_text ("Loading logs...");
             scrolled.set_child (view);
+            box.append (scrolled);
 
-            dialog.set_extra_child (scrolled);
-            dialog.add_response ("ok", "OK");
-            dialog.set_default_response ("ok");
-            dialog.set_close_response ("ok");
+            dialog.set_extra_child (box);
+            dialog.add_response ("close", "Close");
+            dialog.set_default_response ("close");
+            dialog.set_close_response ("close");
 
             var top = this.parentWindow != null ? this.parentWindow : AppServiceSection.find_toplevel_window ();
             if (top != null) {
                 dialog.set_transient_for (top);
-                dialog.present ();
             }
+            dialog.present ();
 
+            this.loadLogs (view, containerName, 200);
+            tailDrop.notify["selected"].connect (() => {
+                this.loadLogs (view, containerName, this.logsTailForIndex (tailDrop.get_selected ()));
+            });
+            refresh.clicked.connect (() => {
+                this.loadLogs (view, containerName, this.logsTailForIndex (tailDrop.get_selected ()));
+            });
+            copy.clicked.connect (() => {
+                var display = Gdk.Display.get_default ();
+                display.get_clipboard ().set_text (this.logText (view));
+            });
+            save.clicked.connect (() => this.saveLogsToFile (view, serviceName));
+        }
+
+        private Gtk.Button makeLogButton (string iconName, string tooltip) {
+            var button = new Gtk.Button ();
+            var icon = new Gtk.Image ();
+            icon.icon_name = iconName;
+            icon.set_pixel_size (16);
+            button.set_child (icon);
+            button.set_hexpand (false);
+            button.set_valign (Gtk.Align.CENTER);
+            button.set_css_classes (new string[] { "flat" });
+            button.set_tooltip_text (tooltip);
+            return button;
+        }
+
+        private string logText (Gtk.TextView view) {
+            var buffer = view.get_buffer ();
+            Gtk.TextIter start;
+            Gtk.TextIter end;
+            buffer.get_start_iter (out start);
+            buffer.get_end_iter (out end);
+            return buffer.get_text (start, end, true);
+        }
+
+        private int logsTailForIndex (uint index) {
+            switch (index) {
+                case 1:
+                    return 1000;
+                case 2:
+                    return 0;
+                default:
+                    return 200;
+            }
+        }
+
+        private void loadLogs (Gtk.TextView view, string containerName, int tail) {
+            this.logsGeneration++;
+            int generation = this.logsGeneration;
+            view.get_buffer ().set_text ("Loading logs...");
             GLib.Thread.create<int> (() => {
-                string? logs = Logic.ComposeService.containerLogs (containerName);
+                string? logs = Logic.ComposeService.containerLogs (containerName, tail);
                 string text = logs != null && logs != "" ? logs : "No logs available.";
                 GLib.MainContext.default ().invoke (() => {
-                    view.get_buffer ().set_text (text);
+                    if (generation == this.logsGeneration) {
+                        view.get_buffer ().set_text (text);
+                    }
                     return false;
                 });
                 return 0;
             }, false);
+        }
+
+        private void saveLogsToFile (Gtk.TextView view, string serviceName) {
+            var fileDialog = new Gtk.FileDialog ();
+            fileDialog.set_title ("Save logs");
+            fileDialog.set_initial_name ("%s-logs.txt".printf (serviceName));
+            fileDialog.save.begin (this.parentWindow, null, (source, result) => {
+                try {
+                    var file = fileDialog.save.end (result);
+                    if (file == null) return;
+                    string text = this.logText (view);
+                    var stream = file.replace (null, false, GLib.FileCreateFlags.REPLACE_DESTINATION, null);
+                    var data = new uint8[text.length];
+                    for (int i = 0; i < text.length; i++) {
+                        data[i] = (uint8) text[i];
+                    }
+                    stream.write_all (data, null);
+                    stream.close (null);
+                    var state = Logic.Application.getState ();
+                    state.actionSuccess = "Logs saved.";
+                    state.changed ();
+                } catch (Error e) {
+                    // Cancelled.
+                }
+            });
         }
 
         private static Gtk.Window? find_toplevel_window () {

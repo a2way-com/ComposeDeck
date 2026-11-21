@@ -13,6 +13,8 @@ namespace Logic {
         public string appsDir { get; set; }
         public int refreshInterval = 10;
         public bool pinnedFirst = true;
+        public int windowWidth = 1000;
+        public int windowHeight = 700;
         public GLib.List<string> pinnedApps = new GLib.List<string> ();
 
         private const string SETTINGS_DIR = ".ComposeDeck";
@@ -104,6 +106,12 @@ namespace Logic {
                 if (obj != null && obj.has_member("pinnedFirst")) {
                     this.pinnedFirst = obj.get_boolean_member("pinnedFirst");
                 }
+                if (obj != null && obj.has_member("windowWidth")) {
+                    this.windowWidth = (int) obj.get_int_member("windowWidth");
+                }
+                if (obj != null && obj.has_member("windowHeight")) {
+                    this.windowHeight = (int) obj.get_int_member("windowHeight");
+                }
                 if (obj != null && obj.has_member("pinned")) {
                     var pinnedArray = obj.get_array_member("pinned");
                     for (int i = 0; i < pinnedArray.get_length(); i++) {
@@ -124,6 +132,10 @@ namespace Logic {
             builder.add_int_value(this.refreshInterval);
             builder.set_member_name("pinnedFirst");
             builder.add_boolean_value(this.pinnedFirst);
+            builder.set_member_name("windowWidth");
+            builder.add_int_value(this.windowWidth);
+            builder.set_member_name("windowHeight");
+            builder.add_int_value(this.windowHeight);
             builder.set_member_name("pinned");
             builder.begin_array();
             foreach (var pinned in this.pinnedApps) {

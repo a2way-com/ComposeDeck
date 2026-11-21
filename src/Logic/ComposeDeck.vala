@@ -7,7 +7,7 @@ namespace Logic {
     public class ComposeDeck {
         public const string APP_ID = "com.a2way.ComposeDeck";
         public const string APP_NAME = "ComposeDeck";
-        public const string VERSION = "0.1.0";
+        public const string VERSION = "0.2.0";
         public const string DEVELOPER_NAME = "a2way";
         public const string APPS_SUBDIR = "Apps";
 
@@ -92,11 +92,24 @@ namespace Logic {
                     bool anyRunning = false;
                     string projectName = ComposeDeck.composeProjectName (path);
                     var services = ComposeService.listServices(path, projectName, out anyRunning);
+
+                    // Include services declared in the compose file but with
+                    // no container yet, so they can be surfaced and created.
+                    var declared = ComposeDeck.composeDeclaredServices (path);
+                    var existingNames = new HashTable<string, bool> (str_hash, str_equal);
+                    foreach (var svc in services) existingNames.insert (svc.name, true);
+                    foreach (var def in declared) {
+                        if (!existingNames.contains (def.name)) {
+                            services.append (def);
+                        }
+                    }
+
                     int runningCount = 0;
                     foreach (var svc in services) {
                         if (svc.running) runningCount++;
                     }
                     var app = new ComposeApp(entry, path, anyRunning);
+                    app.projectName = projectName;
                     app.runningCount = runningCount;
                     app.serviceCount = (int) services.length();
                     app.services = (owned) services;
@@ -105,6 +118,28 @@ namespace Logic {
                         if (a.name > b.name) return 1;
                         return 0;
                     });
+
+                    // Reorder by compose file order; unknown services stay
+                    // in the alphabetical fallback order.
+                    var declaredOrder = ComposeDeck.composeServiceOrder (path);
+                    if (declaredOrder.length() > 0) {
+                        var ordered = new List<AppService> ();
+                        var used = new HashTable<string, bool> (str_hash, str_equal);
+                        foreach (var name in declaredOrder) {
+                            foreach (var svc in app.services) {
+                                if (svc.name == name && !used.contains (name)) {
+                                    ordered.append (svc);
+                                    used.insert (name, true);
+                                    break;
+                                }
+                            }
+                        }
+                        foreach (var svc in app.services) {
+                            if (!used.contains (svc.name)) ordered.append (svc);
+                        }
+                        app.services = (owned) ordered;
+                    }
+
                     apps.append(app);
                 }
             } catch (Error e) {
@@ -166,6 +201,120 @@ namespace Logic {
                 // Fall back to the folder name.
             }
             return fallback;
+        }
+
+        /*
+         * Returns service names in the order they appear under the top-level
+         * "services:" key of the compose file.
+         */
+        private static GLib.List<string> composeServiceOrder (string path) {
+            var order = new GLib.List<string> ();
+            string[] composeNames = {
+                "compose.yaml", "compose.yml",
+                "docker-compose.yaml", "docker-compose.yml"
+            };
+            string? filePath = null;
+            foreach (var composeName in composeNames) {
+                string candidate = path + "/" + composeName;
+                if (File.new_for_path(candidate).query_exists ()) {
+                    filePath = candidate;
+                    break;
+                }
+            }
+            if (filePath == null) return order;
+
+            try {
+                uint8[] raw;
+                string etag;
+                File.new_for_path(filePath).load_contents (null, out raw, out etag);
+                string text = (string) raw;
+                bool inServices = false;
+                int serviceIndent = -1;
+                foreach (var line in text.split ("\n")) {
+                    string trimmed = line.strip ();
+                    if (trimmed == "" || trimmed.has_prefix ("#")) continue;
+
+                    int indent = 0;
+                    while (indent < line.length && line[indent] == ' ') indent++;
+
+                    if (!inServices) {
+                        if (line.has_prefix ("services:")) inServices = true;
+                        continue;
+                    }
+                    if (indent == 0) break;
+                    if (serviceIndent < 0) serviceIndent = indent;
+                    if (indent != serviceIndent) continue;
+
+                    int colon = trimmed.index_of (":");
+                    if (colon <= 0) continue;
+                    string name = trimmed.substring (0, colon).strip ();
+                    if (name == "" || name.has_prefix ("#")) continue;
+                    order.append (name);
+                }
+            } catch (Error e) {
+                // Fall back to alphabetical order.
+            }
+            return order;
+        }
+
+        /*
+         * Returns services declared under the top-level "services:" key,
+         * with their image. They represent containers that do not exist yet.
+         */
+        private static GLib.List<AppService> composeDeclaredServices (string path) {
+            var result = new GLib.List<AppService> ();
+            string[] composeNames = {
+                "compose.yaml", "compose.yml",
+                "docker-compose.yaml", "docker-compose.yml"
+            };
+            string? filePath = null;
+            foreach (var composeName in composeNames) {
+                string candidate = path + "/" + composeName;
+                if (File.new_for_path(candidate).query_exists ()) {
+                    filePath = candidate;
+                    break;
+                }
+            }
+            if (filePath == null) return result;
+
+            try {
+                uint8[] raw;
+                string etag;
+                File.new_for_path(filePath).load_contents (null, out raw, out etag);
+                string text = (string) raw;
+                bool inServices = false;
+                int serviceIndent = -1;
+                AppService? current = null;
+                foreach (var line in text.split ("\n")) {
+                    string trimmed = line.strip ();
+                    if (trimmed == "" || trimmed.has_prefix ("#")) continue;
+
+                    int indent = 0;
+                    while (indent < line.length && line[indent] == ' ') indent++;
+
+                    if (!inServices) {
+                        if (line.has_prefix ("services:")) inServices = true;
+                        continue;
+                    }
+                    if (indent == 0) break;
+                    if (serviceIndent < 0) serviceIndent = indent;
+
+                    if (indent == serviceIndent) {
+                        int colon = trimmed.index_of (":");
+                        if (colon <= 0) continue;
+                        string name = trimmed.substring (0, colon).strip ();
+                        if (name == "") continue;
+                        current = new AppService (name, false);
+                        current.statusText = "Not created";
+                        result.append (current);
+                    } else if (current != null && indent > serviceIndent && trimmed.has_prefix ("image:")) {
+                        current.image = trimmed.substring (6).strip ();
+                    }
+                }
+            } catch (Error e) {
+                // Ignore; no declared services.
+            }
+            return result;
         }
 
         public static void discoverApps () {
@@ -254,12 +403,33 @@ namespace Logic {
             int64 startedAt = GLib.get_monotonic_time();
             GLib.Thread.create<int> (() => {
                 var failed = new List<string> ();
+                bool changed = false;
+
+                bool hasMissing = false;
                 foreach (var service in app.services) {
-                    if (!service.running && !ComposeService.startContainer (service.containerName)) {
-                        failed.append (service.name);
+                    if (service.containerName == "") {
+                        hasMissing = true;
+                        break;
                     }
                 }
-                ComposeDeck.finishAppAction (startedAt, ComposeDeck.formatFailures ("start", failed));
+
+                if (hasMissing) {
+                    changed = ComposeService.composeUp (app.path);
+                    if (!changed) failed.append (app.name);
+                } else {
+                    foreach (var service in app.services) {
+                        if (!service.running) {
+                            if (ComposeService.startContainer (service.containerName)) {
+                                changed = true;
+                            } else {
+                                failed.append (service.name);
+                            }
+                        }
+                    }
+                }
+
+                string? success = changed ? "Started %s".printf (app.name) : null;
+                ComposeDeck.finishAppAction (startedAt, ComposeDeck.formatFailures ("start", failed), success);
                 return 0;
             }, false);
         }
@@ -271,12 +441,18 @@ namespace Logic {
             int64 startedAt = GLib.get_monotonic_time();
             GLib.Thread.create<int> (() => {
                 var failed = new List<string> ();
+                bool changed = false;
                 foreach (var service in app.services) {
-                    if (service.running && !ComposeService.stopContainer (service.containerName)) {
-                        failed.append (service.name);
+                    if (service.running) {
+                        if (ComposeService.stopContainer (service.containerName)) {
+                            changed = true;
+                        } else {
+                            failed.append (service.name);
+                        }
                     }
                 }
-                ComposeDeck.finishAppAction (startedAt, ComposeDeck.formatFailures ("stop", failed));
+                string? success = changed ? "Stopped %s".printf (app.name) : null;
+                ComposeDeck.finishAppAction (startedAt, ComposeDeck.formatFailures ("stop", failed), success);
                 return 0;
             }, false);
         }
@@ -288,12 +464,16 @@ namespace Logic {
             int64 startedAt = GLib.get_monotonic_time();
             GLib.Thread.create<int> (() => {
                 var failed = new List<string> ();
+                bool changed = false;
                 foreach (var service in app.services) {
-                    if (!ComposeService.restartContainer (service.containerName)) {
+                    if (ComposeService.restartContainer (service.containerName)) {
+                        changed = true;
+                    } else {
                         failed.append (service.name);
                     }
                 }
-                ComposeDeck.finishAppAction (startedAt, ComposeDeck.formatFailures ("restart", failed));
+                string? success = changed ? "Restarted %s".printf (app.name) : null;
+                ComposeDeck.finishAppAction (startedAt, ComposeDeck.formatFailures ("restart", failed), success);
                 return 0;
             }, false);
         }

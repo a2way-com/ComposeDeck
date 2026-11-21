@@ -49,6 +49,11 @@ template $AppDetailsPage: Gtk.Box {
       }
     }
 
+    Adw.ActionRow projectRow {
+      title: "Project";
+      visible: false;
+    }
+
     Adw.ActionRow statusRow {
       title: "Status";
       use-markup: true;

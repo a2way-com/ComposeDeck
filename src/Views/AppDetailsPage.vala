@@ -14,6 +14,7 @@ namespace Views {
     [CCode (cname = "AppDetailsPage")]
     public class AppDetailsPage : Gtk.Box {
         [GtkChild] private unowned Adw.ActionRow pathRow;
+        [GtkChild] private unowned Adw.ActionRow projectRow;
         [GtkChild] private unowned Adw.ActionRow statusRow;
         [GtkChild] private unowned Gtk.Label refreshedLabel;
         [GtkChild] private unowned Adw.ActionRow actionsRow;
@@ -78,6 +79,12 @@ namespace Views {
             this.set_visible(true);
 
             pathRow.set_subtitle(selected.path);
+
+            bool showProject = selected.projectName != "" && selected.projectName != selected.name;
+            projectRow.set_visible (showProject);
+            if (showProject) {
+                projectRow.set_subtitle (selected.projectName);
+            }
 
             int runningCount = selected.runningCount;
             int serviceCount = selected.serviceCount;

@@ -50,6 +50,19 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.2.0" date="2026-11-21">
+      <description>
+        <p>Overview dashboard, settings, shortcuts, and richer service details.</p>
+        <ul>
+          <li>Overview dashboard with status filters, pinned apps, and bulk start/stop/restart.</li>
+          <li>Settings for the apps directory, refresh interval, and pinned-app ordering.</li>
+          <li>Ports table with host, container, and protocol columns plus application shortcuts.</li>
+          <li>Logs viewer with tail size, copy, save, and refresh.</li>
+          <li>Compose project names, compose-file service ordering, and creation of missing services.</li>
+          <li>Window size is remembered between launches.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-11-20">
       <description>
         <p>Initial release.</p>

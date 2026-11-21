@@ -71,7 +71,8 @@ flatpak-build: $(BLP_FILES)
 flatpak-run: flatpak-build
 	@flatpak build-export repo build stable >/dev/null 2>&1
 	@flatpak remote-add --user --if-not-exists --no-gpg-verify localrepo file://$(CURDIR)/repo >/dev/null 2>&1 || true
-	@flatpak uninstall --user --assumeyes com.a2way.ComposeDeck >/dev/null 2>&1 || true
+	@flatpak uninstall --user --assumeyes com.a2way.ComposeDeck//stable >/dev/null 2>&1 || true
+	@flatpak uninstall --user --assumeyes com.a2way.ComposeDeck//master >/dev/null 2>&1 || true
 	@flatpak install --user --assumeyes localrepo com.a2way.ComposeDeck//stable >/dev/null 2>&1
 	@flatpak run --user com.a2way.ComposeDeck//stable
 

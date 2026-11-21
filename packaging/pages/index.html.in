@@ -136,6 +136,9 @@
       <a class="button secondary" href="__REPO_URL__">View source</a>
     </div>
 
+    <h2>Why this exists</h2>
+    <p>ComposeDeck exists to run container stacks as apps. A Compose stack is usually a directory, a compose file, and a command you have to remember; here each stack in your apps folder (<code>~/Apps</code> by default) becomes an app with its own status, services, logs, and start/stop/restart lifecycle. State is read from the Podman API, so each app reflects what is actually running.</p>
+
     <h2>Install from the terminal</h2>
     <pre><code>flatpak install --from __BASE_URL__/com.a2way.ComposeDeck.flatpakref</code></pre>
     <p>Updates are delivered through <code>flatpak update</code>.</p>

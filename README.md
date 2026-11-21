@@ -6,6 +6,14 @@ projects running on Podman.
 It scans a folder for compose projects, shows which services are running, and
 lets you start, stop, and restart individual apps or all of them at once.
 
+## Why this exists
+
+ComposeDeck exists to run container stacks as apps. A Compose stack is usually
+a directory, a compose file, and a command you have to remember; here each
+stack in your apps folder (`~/Apps` by default) becomes an app with its own
+status, services, logs, and start/stop/restart lifecycle. State is read from
+the Podman API, so each app reflects what is actually running.
+
 ## Requirements
 
 - Flatpak, with the Flathub remote available for the GNOME runtime.

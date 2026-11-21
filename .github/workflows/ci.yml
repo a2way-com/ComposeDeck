@@ -32,13 +32,41 @@ jobs:
           set -euo pipefail
           appstreamcli validate --no-net data/com.a2way.ComposeDeck.metainfo.xml
           desktop-file-validate data/com.a2way.ComposeDeck.desktop
-          flatpak-builder-lint manifest com.a2way.ComposeDeck.json
+
+      - name: Cache Flatpak build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/flatpak
+            .flatpak-builder
+          key: flatpak-${{ runner.os }}-${{ hashFiles('com.a2way.ComposeDeck.json', 'build.sh', 'src/**') }}
+          restore-keys: |
+            flatpak-${{ runner.os }}-
 
       - name: Build bundle
-        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Use --user: updating the preinstalled system SDK in the container
+          # can fail with "Invalid cross-device link" on overlayfs.
+          flatpak-builder \
+            --user \
+            --repo=repo \
+            --state-dir=.flatpak-builder \
+            --disable-rofiles-fuse \
+            --install-deps-from=flathub \
+            --force-clean \
+            --default-branch=stable \
+            --arch=x86_64 \
+            flatpak_app \
+            com.a2way.ComposeDeck.json
+          flatpak build-bundle \
+            --runtime-repo=https://flathub.org/repo/flathub.flatpakrepo \
+            repo ComposeDeck-x86_64.flatpak com.a2way.ComposeDeck stable
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
         with:
-          manifest-path: com.a2way.ComposeDeck.json
-          bundle: ComposeDeck-x86_64.flatpak
-          branch: stable
-          cache-key: flatpak-builder-${{ github.sha }}
-          upload-artifact: true
+          name: ComposeDeck-x86_64
+          path: ComposeDeck-x86_64.flatpak
+          if-no-files-found: error

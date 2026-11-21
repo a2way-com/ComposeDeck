@@ -90,16 +90,40 @@ jobs:
             printf '%s' "$GPG_PASSPHRASE" | "$PRESET" --preset "$GPG_KEY_GRIP"
           fi
 
-      - name: Build Flatpak repository
-        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+      - name: Cache Flatpak build
+        uses: actions/cache@v4
         with:
-          manifest-path: com.a2way.ComposeDeck.json
-          build-bundle: false
-          branch: stable
-          repo-dir: repo
-          cache-key: flatpak-builder-${{ github.sha }}
-          gpg-sign: ${{ secrets.GPG_KEY_ID }}
-          upload-artifact: false
+          path: |
+            ~/.local/share/flatpak
+            .flatpak-builder
+          key: flatpak-${{ runner.os }}-${{ hashFiles('com.a2way.ComposeDeck.json', 'build.sh', 'src/**') }}
+          restore-keys: |
+            flatpak-${{ runner.os }}-
+
+      - name: Build Flatpak repository
+        shell: bash
+        env:
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GPG_KEY_ID:-}" ]; then
+            echo "Missing GPG_KEY_ID repository secret." >&2
+            exit 1
+          fi
+          # Use --user: updating the preinstalled system SDK in the container
+          # can fail with "Invalid cross-device link" on overlayfs.
+          flatpak-builder \
+            --user \
+            --repo=repo \
+            --state-dir=.flatpak-builder \
+            --disable-rofiles-fuse \
+            --install-deps-from=flathub \
+            --force-clean \
+            --default-branch=stable \
+            --arch=x86_64 \
+            --gpg-sign="$GPG_KEY_ID" \
+            flatpak_app \
+            com.a2way.ComposeDeck.json
 
       - name: Update and sign repository
         shell: bash

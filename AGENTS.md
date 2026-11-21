@@ -3,6 +3,7 @@
 Record of user directives to persist across sessions.
 
 ## Git
+- Never run any Git action (commit, switch, merge, rebase, reset, squash, branch, push, etc.) unless explicitly asked.
 - NEVER make commits unless explicitly asked with `cmt`. User commits manually.
 - Never auto-commit. Never force-push. Create commits only on request.
 - Shorthands: `suc` = show uncommitted changes; `scm` = suggest a commit message (suggested only, no commit).

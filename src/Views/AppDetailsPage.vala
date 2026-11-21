@@ -150,7 +150,7 @@ namespace Views {
                 this.servicesBox.append(serviceGroup);
                 this.serviceGroups.append(serviceGroup);
 
-                var section = new Views.AppServiceSection(service, this.get_toplevel_window());
+                var section = new Views.AppServiceSection(service, selected, this.get_toplevel_window());
                 section.add_to(serviceGroup);
             }
         }

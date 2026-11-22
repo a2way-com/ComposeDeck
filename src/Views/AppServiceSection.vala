@@ -310,6 +310,7 @@ namespace Views {
             string name = defaultName;
             string url = defaultUrl;
             string icon = defaultIcon;
+            bool ownBrowser = false;
 
             if (exists) {
                 try {
@@ -322,11 +323,10 @@ namespace Views {
                         } else if (line.has_prefix ("Icon=")) {
                             icon = line.substring (5).strip ();
                         } else if (line.has_prefix ("Exec=")) {
-                            int q1 = line.index_of ("\"");
-                            int q2 = line.last_index_of ("\"");
-                            if (q1 >= 0 && q2 > q1) {
-                                url = line.substring (q1 + 1, q2 - q1 - 1);
-                            }
+                            url = Logic.ComposeDeck.extractExecUrl (line);
+                        } else if (line.has_prefix ("X-ComposeDeck-OpenInOwnBrowser=")) {
+                            int eq = line.index_of ("=");
+                            if (eq >= 0) ownBrowser = line.substring (eq + 1).strip () == "true";
                         }
                     }
                 } catch (Error e) {
@@ -367,6 +367,15 @@ namespace Views {
             box.append (urlEntry);
             box.append (iconBox);
 
+            var ownBrowserCheck = new Gtk.CheckButton.with_label ("Open in own browser");
+            ownBrowserCheck.set_active (ownBrowser);
+            bool canOwnBrowser = Logic.WebAppBrowser.resolve (Logic.Application.getState ().webAppBrowser) != null;
+            ownBrowserCheck.set_sensitive (canOwnBrowser || ownBrowser);
+            if (!canOwnBrowser) {
+                ownBrowserCheck.set_tooltip_text ("Install Chromium, Chrome, Brave, Edge, Vivaldi, or GNOME Web");
+            }
+            box.append (ownBrowserCheck);
+
             var defaultsButton = new Gtk.Button.with_label ("Set to defaults");
             defaultsButton.set_halign (Gtk.Align.START);
             defaultsButton.set_css_classes (new string[] { "flat" });
@@ -374,6 +383,7 @@ namespace Views {
                 nameEntry.set_text (defaultName);
                 urlEntry.set_text (defaultUrl);
                 iconEntry.set_text (defaultIcon);
+                ownBrowserCheck.set_active (false);
             });
             box.append (defaultsButton);
 
@@ -388,7 +398,7 @@ namespace Views {
 
             dialog.response.connect ((d, response) => {
                 if (response == "save") {
-                    this.savePortShortcut (port, nameEntry.get_text ().strip (), urlEntry.get_text ().strip (), iconEntry.get_text ().strip ());
+                    this.savePortShortcut (port, nameEntry.get_text ().strip (), urlEntry.get_text ().strip (), iconEntry.get_text ().strip (), ownBrowserCheck.get_active ());
                 } else if (response == "remove") {
                     this.removePortShortcut (port);
                 }
@@ -443,13 +453,14 @@ namespace Views {
             preview.icon_name = icon;
         }
 
-        private void savePortShortcut (uint port, string name, string url, string icon) {
+        private void savePortShortcut (uint port, string name, string url, string icon, bool ownBrowser) {
             var state = Logic.Application.getState ();
             string shortcutName = name;
             string shortcutUrl = url;
             string shortcutIcon = icon;
             if (shortcutName == "") shortcutName = "%s — localhost:%u".printf (this.app.name, port);
             if (shortcutUrl == "") shortcutUrl = "http://localhost:%u".printf (port);
+            if (shortcutUrl.index_of ("://") < 0) shortcutUrl = "http://" + shortcutUrl;
             if (shortcutIcon == "") shortcutIcon = "com.a2way.ComposeDeck";
 
             try {
@@ -464,18 +475,65 @@ namespace Views {
             }
 
             string path = this.portShortcutPath (port);
-            string safeName = shortcutName.replace ("\n", " ").replace ("\r", " ");
-            string safeUrl = shortcutUrl.replace ("\"", "%22").replace ("\n", "");
-            string safeIcon = shortcutIcon.replace ("\n", " ").replace ("\r", " ");
-            string content = "[Desktop Entry]\n" +
-                "Version=1.0\n" +
-                "Type=Application\n" +
-                "Name=%s\n".printf (safeName) +
-                "Comment=Open %s\n".printf (safeName) +
-                "Exec=xdg-open \"%s\"\n".printf (safeUrl) +
-                "Icon=%s\n".printf (safeIcon) +
-                "Terminal=false\n" +
-                "Categories=Network;\n";
+            string shortcutFileBase = GLib.Path.get_basename (path);
+            if (shortcutFileBase.has_suffix (".desktop")) {
+                shortcutFileBase = shortcutFileBase.substring (0, shortcutFileBase.length - 8);
+            }
+
+            Logic.ComposeDeck.cleanupLegacyPortalEntriesFor (
+                Logic.ComposeDeck.legacySegment (this.app.name, port));
+
+            string oldProfileName = "";
+            string content;
+            if (ownBrowser) {
+                var browser = Logic.WebAppBrowser.resolve (state.webAppBrowser);
+                if (browser == null) {
+                    state.actionError = "No app-mode browser found. Install Chromium, Chrome, Brave, Edge, Vivaldi, or GNOME Web.";
+                    state.changed ();
+                    return;
+                }
+
+                var existing = GLib.File.new_for_path (path);
+                if (existing.query_exists ()) {
+                    try {
+                        uint8[] raw;
+                        string etag;
+                        existing.load_contents (null, out raw, out etag);
+                        string oldContent = (string) raw;
+                        if (oldContent.contains ("--application-mode")) {
+                            string oldName = "";
+                            foreach (var line in oldContent.split ("\n")) {
+                                if (line.has_prefix ("Name=")) {
+                                    oldName = line.substring (5).strip ();
+                                }
+                            }
+                            if (browser.profileMode) {
+                                string newName = shortcutName.replace ("\n", " ").replace ("\r", " ");
+                                Logic.ComposeDeck.moveWebAppProfile (oldName, newName);
+                            } else {
+                                oldProfileName = oldName;
+                            }
+                        }
+                    } catch (Error e) {
+                        // Best effort; save proceeds.
+                    }
+                }
+
+                content = Logic.ComposeDeck.buildOwnBrowserShortcut (browser, shortcutName, shortcutIcon, shortcutUrl, shortcutFileBase);
+            } else {
+                string safeName = shortcutName.replace ("\n", " ").replace ("\r", " ");
+                string safeUrl = shortcutUrl.replace ("\"", "%22").replace ("\n", "");
+                string safeIcon = shortcutIcon.replace ("\n", " ").replace ("\r", " ");
+                content = "[Desktop Entry]\n" +
+                    "Version=1.0\n" +
+                    "Type=Application\n" +
+                    "Name=%s\n".printf (safeName) +
+                    "Comment=Open %s\n".printf (safeName) +
+                    "Exec=xdg-open \"%s\"\n".printf (safeUrl) +
+                    "Icon=%s\n".printf (safeIcon) +
+                    "Terminal=false\n" +
+                    "Categories=Network;\n";
+            }
 
             try {
                 var file = GLib.File.new_for_path (path);
@@ -492,20 +550,49 @@ namespace Views {
                 return;
             }
 
+            if (oldProfileName != "" && !Logic.ComposeDeck.webAppProfileShared (oldProfileName, path)) {
+                Logic.ComposeDeck.cleanupWebAppProfile (oldProfileName);
+            }
+
             state.actionSuccess = "Shortcut saved.";
             state.changed ();
         }
 
         private void removePortShortcut (uint port) {
             var state = Logic.Application.getState ();
-            var file = GLib.File.new_for_path (this.portShortcutPath (port));
+            string path = this.portShortcutPath (port);
+            var file = GLib.File.new_for_path (path);
             if (!file.query_exists ()) return;
+
+            string name = "";
+            bool profileMode = false;
+            try {
+                uint8[] raw;
+                string etag;
+                file.load_contents (null, out raw, out etag);
+                string content = (string) raw;
+                profileMode = content.contains ("--application-mode");
+                foreach (var line in content.split ("\n")) {
+                    if (line.has_prefix ("Name=")) {
+                        name = line.substring (5).strip ();
+                    }
+                }
+            } catch (Error e) {
+                // Best effort; still remove the shortcut below.
+            }
+
             try {
                 file.delete (null);
             } catch (Error e) {
                 state.actionError = "Could not remove the application shortcut.";
                 state.changed ();
                 return;
+            }
+
+            Logic.ComposeDeck.cleanupLegacyPortalEntriesFor (
+                Logic.ComposeDeck.legacySegment (this.app.name, port));
+            if (profileMode && name != "" && !Logic.ComposeDeck.webAppProfileShared (name, path)) {
+                Logic.ComposeDeck.cleanupWebAppProfile (name);
             }
             state.actionSuccess = "Shortcut removed.";
             state.changed ();

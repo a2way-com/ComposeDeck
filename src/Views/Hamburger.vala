@@ -142,6 +142,54 @@ namespace Views {
             });
             scanGroup.add (pinnedRow);
 
+            var webGroup = new Adw.PreferencesGroup ();
+            webGroup.set_title ("Web apps");
+            page.add (webGroup);
+
+            Logic.WebAppBrowser.invalidateDetection ();
+            var browsers = Logic.WebAppBrowser.detect ();
+            var browserRow = new Adw.ComboRow ();
+            browserRow.set_title ("App browser");
+            browserRow.set_subtitle ("Used by shortcuts that open in their own browser");
+            if (browsers.length () == 0) {
+                if (state.webAppBrowser != "") {
+                    state.webAppBrowser = "";
+                    state.saveSettings ();
+                }
+                browserRow.set_sensitive (false);
+                browserRow.set_subtitle ("No app-mode browser found");
+            } else {
+                var browserModel = new Gtk.StringList (null);
+                foreach (var browser in browsers) {
+                    browserModel.append (browser.name);
+                }
+                browserRow.set_model (browserModel);
+
+                int browserIndex = -1;
+                int index = 0;
+                foreach (var browser in browsers) {
+                    if (browser.id == state.webAppBrowser) browserIndex = index;
+                    index++;
+                }
+                if (browserIndex < 0) {
+                    browserIndex = 0;
+                    state.webAppBrowser = browsers.nth_data (0).id;
+                    state.saveSettings ();
+                    Logic.ComposeDeck.rewriteAppShortcuts ();
+                }
+                browserRow.set_selected ((uint) browserIndex);
+
+                browserRow.notify["selected"].connect (() => {
+                    int selected = (int) browserRow.get_selected ();
+                    if (selected >= 0 && selected < (int) browsers.length ()) {
+                        state.webAppBrowser = browsers.nth_data (selected).id;
+                        state.saveSettings ();
+                        Logic.ComposeDeck.rewriteAppShortcuts ();
+                    }
+                });
+            }
+            webGroup.add (browserRow);
+
             prefs.present ();
         }
 

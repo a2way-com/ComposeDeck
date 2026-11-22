@@ -37,6 +37,19 @@ namespace Logic {
         public static void start (State state) {
             ComposeDeck.state = state;
 
+            var browser = WebAppBrowser.resolve (state.webAppBrowser);
+            if (browser == null) {
+                browser = WebAppBrowser.resolve ("");
+            }
+            if (browser != null && browser.id != state.webAppBrowser) {
+                state.webAppBrowser = browser.id;
+                state.saveSettings ();
+                ComposeDeck.rewriteAppShortcuts ();
+            } else if (browser == null && state.webAppBrowser != "") {
+                state.webAppBrowser = "";
+                state.saveSettings ();
+            }
+
             ComposeDeck.state.selectedApp = null;
             discoverApps();
             ComposeDeck.lastPoll = GLib.get_monotonic_time() / 1000 / 1000;
@@ -315,6 +328,384 @@ namespace Logic {
                 // Ignore; no declared services.
             }
             return result;
+        }
+
+        /*
+         * Builds a managed shortcut entry that opens the URL in app mode.
+         */
+        public static string buildOwnBrowserShortcut (WebAppBrowser browser, string name, string icon, string url, string fileBase) {
+            string safeName = name.replace ("\n", " ").replace ("\r", " ");
+            string safeUrl = url.replace ("\"", "%22").replace ("\n", "");
+            string safeIcon = icon.replace ("\n", " ").replace ("\r", " ");
+
+            string execLine;
+            string wmClass = "";
+            if (browser.profileMode) {
+                execLine = browser.buildExec (safeUrl, fileBase);
+                wmClass = browser.profilePrefix + GLib.Checksum.compute_for_string (GLib.ChecksumType.SHA1, safeName);
+            } else {
+                execLine = browser.buildExec (safeUrl, "");
+            }
+
+            string content = "[Desktop Entry]\n" +
+                "Version=1.0\n" +
+                "Type=Application\n" +
+                "Name=%s\n".printf (safeName) +
+                "Comment=Open %s\n".printf (safeName) +
+                "Exec=%s\n".printf (execLine) +
+                "Icon=%s\n".printf (safeIcon) +
+                "Terminal=false\n" +
+                "Categories=Network;\n" +
+                "X-ComposeDeck-OpenInOwnBrowser=true\n";
+            if (wmClass != "") {
+                content += "StartupWMClass=%s\n".printf (wmClass);
+            }
+            return content;
+        }
+
+        /*
+         * Directories that may contain GNOME Web app profiles.
+         */
+        private static string[] profileBases () {
+            string home = Environment.get_home_dir ();
+            return {
+                home + "/.local/share",
+                home + "/.cache",
+                home + "/.config",
+                home + "/.var/app/org.gnome.Epiphany/data",
+                home + "/.var/app/org.gnome.Epiphany/cache",
+                home + "/.var/app/org.gnome.Epiphany/config",
+                home + "/.var/app/org.gnome.Ephemeral/data",
+                home + "/.var/app/org.gnome.Ephemeral/cache",
+                home + "/.var/app/org.gnome.Ephemeral/config"
+            };
+        }
+
+        /*
+         * Builds the legacy app/port segment used by the old portal layout.
+         */
+        public static string legacySegment (string appName, uint port) {
+            string lower = appName.down ();
+            var safe = new StringBuilder ();
+            for (int i = 0; i < lower.length; i++) {
+                char ch = lower[i];
+                if ((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9')) {
+                    safe.append_c (ch);
+                } else {
+                    safe.append_c ('_');
+                }
+            }
+            return safe.str + "_" + port.to_string ();
+        }
+
+        private static void deleteRecursively (File file) {
+            try {
+                if (file.query_file_type (GLib.FileQueryInfoFlags.NOFOLLOW_SYMLINKS, null) != GLib.FileType.DIRECTORY) {
+                    file.delete (null);
+                    return;
+                }
+                var enumerator = file.enumerate_children (
+                    "standard::name,standard::type",
+                    GLib.FileQueryInfoFlags.NOFOLLOW_SYMLINKS, null);
+                GLib.FileInfo? info;
+                while ((info = enumerator.next_file (null)) != null) {
+                    var child = file.get_child (info.get_name ());
+                    if (info.get_file_type () == GLib.FileType.DIRECTORY) {
+                        ComposeDeck.deleteRecursively (child);
+                    } else {
+                        try {
+                            child.delete (null);
+                        } catch (Error e) {
+                            // Ignore individual files.
+                        }
+                    }
+                }
+                enumerator.close (null);
+                file.delete (null);
+            } catch (Error e) {
+                // Ignore.
+            }
+        }
+
+        /*
+         * Removes legacy portal files and profiles for one app/port.
+         */
+        public static void cleanupLegacyPortalEntriesFor (string segment) {
+            string home = Environment.get_home_dir ();
+            string[] dirs = {
+                home + "/.local/share/applications",
+                home + "/.local/share/xdg-desktop-portal/applications"
+            };
+            string[] prefixes = {
+                "org.gnome.Epiphany.WebApp_",
+                "org.gnome.Ephemeral.WebApp_"
+            };
+
+            foreach (var dirPath in dirs) {
+                foreach (var prefix in prefixes) {
+                    var file = File.new_for_path (dirPath + "/" + prefix + "composedeck_" + segment + ".desktop");
+                    if (!file.query_exists ()) continue;
+                    try {
+                        file.delete (null);
+                    } catch (Error e) {
+                        // Ignore.
+                    }
+                }
+            }
+
+            foreach (var baseDir in ComposeDeck.profileBases ()) {
+                foreach (var prefix in prefixes) {
+                    var profile = File.new_for_path (baseDir + "/" + prefix + "composedeck_" + segment);
+                    if (profile.query_exists ()) {
+                        ComposeDeck.deleteRecursively (profile);
+                    }
+                }
+            }
+        }
+
+        /*
+         * Whether another managed shortcut still uses the same web app name.
+         */
+        public static bool webAppProfileShared (string name, string excludePath) {
+            if (name == "") return false;
+            string dirPath = Environment.get_home_dir () + "/.local/share/applications";
+            try {
+                var handle = Dir.open (dirPath);
+                string? entry;
+                while ((entry = handle.read_name ()) != null) {
+                    if (!entry.has_prefix ("composedeck-") || !entry.has_suffix (".desktop")) continue;
+                    string path = dirPath + "/" + entry;
+                    if (path == excludePath) continue;
+                    uint8[] raw;
+                    string etag;
+                    try {
+                        File.new_for_path (path).load_contents (null, out raw, out etag);
+                    } catch (Error e) {
+                        continue;
+                    }
+                    string other = (string) raw;
+                    if (!other.contains ("X-ComposeDeck-OpenInOwnBrowser=true")) continue;
+                    if (!other.contains ("--application-mode")) continue;
+                    foreach (var line in other.split ("\n")) {
+                        if (line.has_prefix ("Name=") && line.substring (5).strip () == name) {
+                            return true;
+                        }
+                    }
+                }
+            } catch (Error e) {
+                // Treat as not shared.
+            }
+            return false;
+        }
+
+        /*
+         * Removes the GNOME Web profile for a shortcut name.
+         */
+        public static void cleanupWebAppProfile (string name) {
+            if (name == "") return;
+            string hash = GLib.Checksum.compute_for_string (GLib.ChecksumType.SHA1, name);
+            string[] prefixes = {
+                "org.gnome.Epiphany.WebApp_",
+                "org.gnome.Ephemeral.WebApp_"
+            };
+            foreach (var baseDir in ComposeDeck.profileBases ()) {
+                foreach (var prefix in prefixes) {
+                    var profile = File.new_for_path (baseDir + "/" + prefix + hash);
+                    if (profile.query_exists ()) {
+                        ComposeDeck.deleteRecursively (profile);
+                    }
+                }
+            }
+        }
+
+        /*
+         * Removes desktop entries left by the old GNOME Web portal layout.
+         */
+        public static void cleanupLegacyPortalEntries () {
+            string home = Environment.get_home_dir ();
+            string[] dirs = {
+                home + "/.local/share/applications",
+                home + "/.local/share/xdg-desktop-portal/applications"
+            };
+            string[] prefixes = {
+                "org.gnome.Epiphany.WebApp_composedeck_",
+                "org.gnome.Ephemeral.WebApp_composedeck_"
+            };
+
+            foreach (var dirPath in dirs) {
+                try {
+                    var handle = Dir.open (dirPath);
+                    string? entry;
+                    while ((entry = handle.read_name ()) != null) {
+                        bool match = false;
+                        foreach (var prefix in prefixes) {
+                            if (entry.has_prefix (prefix)) {
+                                match = true;
+                                break;
+                            }
+                        }
+                        if (!match) continue;
+                        try {
+                            File.new_for_path (dirPath + "/" + entry).delete (null);
+                        } catch (Error e) {
+                            // Ignore individual failures.
+                        }
+                    }
+                } catch (Error e) {
+                    // Directory may not exist.
+                }
+            }
+
+            foreach (var baseDir in ComposeDeck.profileBases ()) {
+                try {
+                    var handle = Dir.open (baseDir);
+                    string? entry;
+                    while ((entry = handle.read_name ()) != null) {
+                        bool match = false;
+                        foreach (var prefix in prefixes) {
+                            if (entry.has_prefix (prefix)) {
+                                match = true;
+                                break;
+                            }
+                        }
+                        if (match) {
+                            ComposeDeck.deleteRecursively (File.new_for_path (baseDir + "/" + entry));
+                        }
+                    }
+                } catch (Error e) {
+                    // Directory may not exist.
+                }
+            }
+        }
+
+        /*
+         * Moves GNOME Web profile data when a shortcut's name changes.
+         */
+        public static void moveWebAppProfile (string oldName, string newName) {
+            if (oldName == "" || newName == "" || oldName == newName) return;
+
+            string oldHash = GLib.Checksum.compute_for_string (GLib.ChecksumType.SHA1, oldName);
+            string newHash = GLib.Checksum.compute_for_string (GLib.ChecksumType.SHA1, newName);
+            string[] prefixes = {
+                "org.gnome.Epiphany.WebApp_",
+                "org.gnome.Ephemeral.WebApp_"
+            };
+            foreach (var baseDir in ComposeDeck.profileBases ()) {
+                foreach (var prefix in prefixes) {
+                    var oldProfile = File.new_for_path (baseDir + "/" + prefix + oldHash);
+                    var newProfile = File.new_for_path (baseDir + "/" + prefix + newHash);
+                    if (!oldProfile.query_exists () || newProfile.query_exists ()) continue;
+                    try {
+                        oldProfile.move (newProfile, GLib.FileCopyFlags.NONE, null, null);
+                    } catch (Error e) {
+                        // Leave the old profile in place.
+                    }
+                }
+            }
+        }
+
+        /*
+         * Extracts the last quoted URL from a desktop Exec line.
+         */
+        public static string extractExecUrl (string line) {
+            string last = "";
+            int pos = 0;
+            while (true) {
+                int q1 = line.index_of ("\"", pos);
+                if (q1 < 0) break;
+                int q2 = line.index_of ("\"", q1 + 1);
+                if (q2 < 0) break;
+                last = line.substring (q1 + 1, q2 - q1 - 1);
+                pos = q2 + 1;
+            }
+            int http = last.index_of ("http://");
+            if (http < 0) http = last.index_of ("https://");
+            if (http > 0) last = last.substring (http);
+            return last;
+        }
+
+        /*
+         * Rewrites all ComposeDeck-managed shortcuts that open in app mode
+         * so they use the currently selected browser.
+         */
+        public static int rewriteAppShortcuts () {
+            var state = ComposeDeck.state;
+            var browser = WebAppBrowser.resolve (state.webAppBrowser);
+            if (browser == null) {
+                state.actionError = "No app-mode browser is available for the existing shortcuts.";
+                state.changed ();
+                return 0;
+            }
+
+            ComposeDeck.cleanupLegacyPortalEntries ();
+            string dirPath = Environment.get_home_dir () + "/.local/share/applications";
+            int updated = 0;
+
+            try {
+                var handle = Dir.open (dirPath);
+                string? entry;
+                while ((entry = handle.read_name ()) != null) {
+                    if (!entry.has_prefix ("composedeck-") || !entry.has_suffix (".desktop")) continue;
+                    string path = dirPath + "/" + entry;
+
+                    uint8[] raw;
+                    string etag;
+                    try {
+                        File.new_for_path (path).load_contents (null, out raw, out etag);
+                    } catch (Error e) {
+                        continue;
+                    }
+                    string content = (string) raw;
+                    if (!content.contains ("X-ComposeDeck-OpenInOwnBrowser=true")) continue;
+
+                    string name = "";
+                    string icon = "";
+                    string url = "";
+                    foreach (var line in content.split ("\n")) {
+                        if (line.has_prefix ("Name=")) {
+                            name = line.substring (5).strip ();
+                        } else if (line.has_prefix ("Icon=")) {
+                            icon = line.substring (5).strip ();
+                        } else if (line.has_prefix ("Exec=")) {
+                            url = ComposeDeck.extractExecUrl (line);
+                        }
+                    }
+                    if (url == "") continue;
+                    if (name == "") name = entry.substring (0, entry.length - 8);
+
+                    string fileBase = entry.substring (0, entry.length - 8);
+                    string newContent = ComposeDeck.buildOwnBrowserShortcut (browser, name, icon, url, fileBase);
+                    if (newContent == content) continue;
+
+                    try {
+                        var file = File.new_for_path (path);
+                        var stream = file.replace (null, false, GLib.FileCreateFlags.REPLACE_DESTINATION, null);
+                        var data = new uint8[newContent.length];
+                        for (int i = 0; i < newContent.length; i++) {
+                            data[i] = (uint8) newContent[i];
+                        }
+                        stream.write_all (data, null);
+                        stream.close (null);
+                        if (!browser.profileMode && content.contains ("--application-mode") && name != ""
+                            && !ComposeDeck.webAppProfileShared (name, path)) {
+                            ComposeDeck.cleanupWebAppProfile (name);
+                        }
+                        updated++;
+                    } catch (Error e) {
+                        // Leave this shortcut unchanged.
+                    }
+                }
+            } catch (Error e) {
+                state.actionError = "Could not update the existing shortcuts.";
+                state.changed ();
+                return 0;
+            }
+
+            if (updated > 0) {
+                state.actionSuccess = "Updated %d shortcut%s.".printf (updated, updated == 1 ? "" : "s");
+                state.changed ();
+            }
+            return updated;
         }
 
         public static void discoverApps () {

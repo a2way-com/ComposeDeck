@@ -109,6 +109,21 @@ namespace Logic {
                     // Include services declared in the compose file but with
                     // no container yet, so they can be surfaced and created.
                     var declared = ComposeDeck.composeDeclaredServices (path);
+                    var declaredNames = new HashTable<string, bool> (str_hash, str_equal);
+                    foreach (var def in declared) declaredNames.insert (def.name, true);
+
+                    // Containers whose service is no longer in the compose
+                    // file are orphans; keep them visible until removed.
+                    int orphanCount = 0;
+                    foreach (var svc in services) {
+                        if (declared.length() == 0 || svc.containerName == "")
+                            continue;
+                        if (declaredNames.contains (svc.name))
+                            continue;
+                        svc.orphan = true;
+                        orphanCount++;
+                    }
+
                     var existingNames = new HashTable<string, bool> (str_hash, str_equal);
                     foreach (var svc in services) existingNames.insert (svc.name, true);
                     foreach (var def in declared) {
@@ -125,6 +140,7 @@ namespace Logic {
                     app.projectName = projectName;
                     app.runningCount = runningCount;
                     app.serviceCount = (int) services.length();
+                    app.orphanCount = orphanCount;
                     app.services = (owned) services;
                     app.services.sort ((a, b) => {
                         if (a.name < b.name) return -1;
@@ -865,6 +881,54 @@ namespace Logic {
                 }
                 string? success = changed ? "Restarted %s".printf (app.name) : null;
                 ComposeDeck.finishAppAction (startedAt, ComposeDeck.formatFailures ("restart", failed), success);
+                return 0;
+            }, false);
+        }
+
+        /*
+         * Removes containers belonging to this app's project that are no
+         * longer declared in its compose file.
+         */
+        public static void removeOrphans (ComposeApp app) {
+            if (ComposeDeck.state.actionInProgress) return;
+            ComposeDeck.beginAppAction();
+
+            int64 startedAt = GLib.get_monotonic_time();
+            GLib.Thread.create<int> (() => {
+                var failed = new List<string> ();
+                int removed = 0;
+                int orphanCount = 0;
+
+                var declared = ComposeDeck.composeDeclaredServices(app.path);
+                var declaredNames = new HashTable<string, bool> (str_hash, str_equal);
+                foreach (var def in declared) declaredNames.insert(def.name, true);
+
+                // An empty declaration list means the compose file could not
+                // be parsed; never treat every container as an orphan then.
+                if (declared.length() > 0) {
+                    bool anyRunning = false;
+                    var services = ComposeService.listServices(app.path, app.projectName, out anyRunning);
+                    foreach (var service in services) {
+                        if (service.containerName == "") continue;
+                        if (declaredNames.contains(service.name)) continue;
+                        orphanCount++;
+                        if (ComposeService.removeContainer(service.containerName)) {
+                            removed++;
+                        } else {
+                            failed.append(service.name);
+                        }
+                    }
+                }
+
+                string? error = ComposeDeck.formatFailures("remove", failed);
+                string? success = null;
+                if (orphanCount == 0) {
+                    success = "No orphan containers found in %s".printf(app.name);
+                } else if (removed > 0) {
+                    success = "Removed %d orphan%s from %s".printf(
+                        removed, removed == 1 ? "" : "s", app.name);
+                }
+                ComposeDeck.finishAppAction(startedAt, error, success);
                 return 0;
             }, false);
         }

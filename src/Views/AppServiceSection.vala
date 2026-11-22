@@ -39,6 +39,9 @@ namespace Views {
             string subtitle = this.service.statusText != ""
                 ? this.service.statusText
                 : (this.service.running ? "Running" : "Stopped");
+            if (this.service.orphan) {
+                subtitle = "Orphan container · " + subtitle;
+            }
             if (this.service.healthStatus != "") {
                 string hColor = this.service.healthStatus == "healthy" ? "#4CAF50"
                     : this.service.healthStatus == "unhealthy" ? "#F44336"

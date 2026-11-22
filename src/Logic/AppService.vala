@@ -12,6 +12,7 @@ namespace Logic {
         public string statusText { get; set; }
         public string healthStatus { get; set; }
         public bool running { get; set; }
+        public bool orphan { get; set; }
         public GLib.List<AppPort> ports = new GLib.List<AppPort>();
 
         public AppService (string name, bool running) {
@@ -21,6 +22,7 @@ namespace Logic {
             this.statusText = "";
             this.healthStatus = "";
             this.running = running;
+            this.orphan = false;
         }
     }
 }

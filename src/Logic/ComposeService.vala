@@ -209,10 +209,10 @@ namespace Logic {
         }
 
         /*
-         * Sends a container lifecycle action (start/stop/restart) to the podman
-         * socket and reports success based on the HTTP status code.
+         * Sends a container lifecycle request to the podman socket and
+         * reports success based on the HTTP status code.
          */
-        private static bool containerAction (string name, string action) {
+        private static bool containerRequest (string method, string resource) {
             string? sock = ComposeService.socketPath();
             if (sock == null) return false;
             if (!ComposeService.canConnect(sock)) return false;
@@ -223,7 +223,7 @@ namespace Logic {
                 socket.connect(addr, null);
                 socket.set_timeout(10);
 
-                string request = "POST /containers/" + name + "/" + action + " HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
+                string request = method + " /containers/" + resource + " HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
                 socket.send(request.data, null);
 
                 var buf = new uint8[4096];
@@ -246,6 +246,10 @@ namespace Logic {
             } catch (Error e) {
                 return false;
             }
+        }
+
+        private static bool containerAction (string name, string action) {
+            return ComposeService.containerRequest ("POST", name + "/" + action);
         }
 
         /*
@@ -403,6 +407,14 @@ namespace Logic {
 
         public static bool restartContainer (string name) {
             return ComposeService.containerAction(name, "restart?t=10");
+        }
+
+        /*
+         * DELETE /containers/{name}?force=true removes the container even
+         * when it is still running.
+         */
+        public static bool removeContainer (string name) {
+            return ComposeService.containerRequest ("DELETE", name + "?force=true");
         }
     }
 }

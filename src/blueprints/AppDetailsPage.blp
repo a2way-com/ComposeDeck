@@ -100,6 +100,16 @@ template $AppDetailsPage: Gtk.Box {
           margin-bottom: 6;
         }
 
+        Gtk.Button orphanButton {
+          label: "Remove orphans";
+          hexpand: false;
+          valign: center;
+          css-classes: ["flat"];
+          tooltip-text: "Remove containers that are not in the compose file";
+          margin-top: 6;
+          margin-bottom: 6;
+        }
+
         Adw.Spinner actionSpinner {
           hexpand: false;
           halign: end;

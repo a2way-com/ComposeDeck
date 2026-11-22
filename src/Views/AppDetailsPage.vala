@@ -24,6 +24,7 @@ namespace Views {
         [GtkChild] private unowned Gtk.Button startButton;
         [GtkChild] private unowned Gtk.Button stopButton;
         [GtkChild] private unowned Gtk.Button restartButton;
+        [GtkChild] private unowned Gtk.Button orphanButton;
         [GtkChild] private unowned Adw.Spinner actionSpinner;
         [GtkChild] private unowned Gtk.Box servicesBox;
 
@@ -40,6 +41,7 @@ namespace Views {
             this.startButton.clicked.connect(this.onStartAppClicked);
             this.stopButton.clicked.connect(this.onStopAppClicked);
             this.restartButton.clicked.connect(this.onRestartAppClicked);
+            this.orphanButton.clicked.connect(this.onRemoveOrphansClicked);
 
             var pathIcon = new Gtk.Image ();
             pathIcon.icon_name = "edit-copy-symbolic";
@@ -49,6 +51,7 @@ namespace Views {
             this.addIconButton (this.startButton, "media-playback-start-symbolic");
             this.addIconButton (this.stopButton, "media-playback-stop-symbolic");
             this.addIconButton (this.restartButton, "view-refresh-symbolic");
+            this.addIconButton (this.orphanButton, "user-trash-symbolic");
 
             this.render();
         }
@@ -124,6 +127,7 @@ namespace Views {
             this.startButton.set_visible(!busy && !selected.running);
             this.stopButton.set_visible(!busy && selected.running);
             this.restartButton.set_visible(!busy && selected.running);
+            this.orphanButton.set_visible(!busy && selected.orphanCount > 0);
 
             if (busy) {
                 this.actionSpinner.set_visible(true);
@@ -231,6 +235,35 @@ namespace Views {
             var selected = this.state.selectedApp;
             if (selected == null) return;
             Logic.ComposeDeck.restartApp(selected);
+        }
+
+        private void onRemoveOrphansClicked () {
+            var selected = this.state.selectedApp;
+            if (selected == null) return;
+
+            var names = new StringBuilder ();
+            foreach (var service in selected.services) {
+                if (!service.orphan) continue;
+                if (names.len > 0) names.append (", ");
+                names.append (service.name);
+            }
+            if (names.len == 0) return;
+
+            var dialog = new Adw.MessageDialog (
+                this.get_toplevel_window (),
+                "Remove orphan containers?",
+                "These containers are not declared in the compose file: %s".printf (names.str));
+            dialog.add_response ("cancel", "Cancel");
+            dialog.add_response ("remove", "Remove");
+            dialog.set_response_appearance ("remove", Adw.ResponseAppearance.DESTRUCTIVE);
+            dialog.set_default_response ("cancel");
+            dialog.set_close_response ("cancel");
+            dialog.response.connect ((response) => {
+                if (response == "remove") {
+                    Logic.ComposeDeck.removeOrphans (selected);
+                }
+            });
+            dialog.present ();
         }
 
         private void onRetryClicked () {

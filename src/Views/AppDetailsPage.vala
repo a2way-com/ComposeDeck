@@ -26,10 +26,13 @@ namespace Views {
         [GtkChild] private unowned Gtk.Button restartButton;
         [GtkChild] private unowned Gtk.Button orphanButton;
         [GtkChild] private unowned Adw.Spinner actionSpinner;
+        [GtkChild] private unowned Gtk.Label shortcutsHeading;
+        [GtkChild] private unowned Adw.PreferencesGroup shortcutsGroup;
         [GtkChild] private unowned Gtk.Box servicesBox;
 
         private Logic.State state;
         private List<Adw.PreferencesGroup> serviceGroups = new List<Adw.PreferencesGroup> ();
+        private List<Adw.PreferencesRow> shortcutRows = new List<Adw.PreferencesRow> ();
         private Adw.PreferencesGroup? podmanBanner;
 
         public AppDetailsPage () {
@@ -135,6 +138,8 @@ namespace Views {
                 this.actionSpinner.set_visible(false);
             }
 
+            this.renderShortcuts (selected);
+
             // Podman unreachable banner
             if (!this.state.podmanReachable) {
                 if (this.podmanBanner == null) {
@@ -169,6 +174,119 @@ namespace Views {
 
                 var section = new Views.AppServiceSection(service, selected, this.get_toplevel_window());
                 section.add_to(serviceGroup);
+            }
+        }
+
+        /*
+         * Shows every shortcut published for the selected app, with the
+         * icon and name from its desktop entry, and makes each one launch.
+         */
+        private void renderShortcuts (Logic.ComposeApp app) {
+            foreach (var row in this.shortcutRows) {
+                this.shortcutsGroup.remove(row);
+            }
+            this.shortcutRows = new List<Adw.PreferencesRow>();
+
+            var shortcuts = Logic.ComposeDeck.listAppShortcuts(app);
+            bool hasShortcuts = shortcuts.length() > 0;
+            this.shortcutsHeading.set_visible(hasShortcuts);
+            this.shortcutsGroup.set_visible(hasShortcuts);
+
+            foreach (var shortcut in shortcuts) {
+                var row = this.buildShortcutRow(shortcut, app.name);
+                this.shortcutsGroup.add(row);
+                this.shortcutRows.append(row);
+            }
+        }
+
+        private Adw.ActionRow buildShortcutRow (Logic.AppShortcut shortcut, string appName) {
+            var row = new Adw.ActionRow();
+            row.set_activatable(true);
+            row.set_title(shortcut.name);
+            if (shortcut.url != "") {
+                row.set_subtitle(shortcut.url);
+            }
+            row.set_tooltip_text("Open %s".printf(shortcut.name));
+
+            var icon = this.buildShortcutIcon(shortcut.icon);
+            icon.set_valign(Gtk.Align.CENTER);
+            row.add_prefix(icon);
+
+            var changeButton = new Gtk.Button.with_label("Change shortcut");
+            changeButton.set_hexpand(false);
+            changeButton.set_valign(Gtk.Align.CENTER);
+            changeButton.set_css_classes(new string[] { "flat" });
+            changeButton.clicked.connect(() => {
+                var dialog = new Views.ShortcutEditor(appName, shortcut.port, this.get_toplevel_window());
+                dialog.present();
+            });
+            row.add_suffix(changeButton);
+
+            var openButton = new Gtk.Button();
+            var openIcon = new Gtk.Image();
+            openIcon.icon_name = "web-browser-symbolic";
+            openIcon.set_pixel_size(16);
+            openButton.set_child(openIcon);
+            openButton.set_hexpand(false);
+            openButton.set_valign(Gtk.Align.CENTER);
+            openButton.set_css_classes(new string[] { "flat" });
+            openButton.set_tooltip_text(shortcut.ownBrowser ? "Open in own browser" : "Open in browser");
+            openButton.clicked.connect(() => this.launchShortcut(shortcut));
+            row.add_suffix(openButton);
+
+            row.activated.connect(() => this.launchShortcut(shortcut));
+            return row;
+        }
+
+        private Gtk.Image buildShortcutIcon (string iconValue) {
+            var image = new Gtk.Image();
+            image.set_pixel_size(40);
+
+            if (iconValue.has_prefix("/") && GLib.File.new_for_path(iconValue).query_exists()) {
+                image.set_from_file(iconValue);
+                return image;
+            }
+
+            if (iconValue != "") {
+                var display = Gdk.Display.get_default();
+                var theme = display != null ? Gtk.IconTheme.get_for_display(display) : null;
+                if (theme != null && theme.has_icon(iconValue)) {
+                    image.icon_name = iconValue;
+                    return image;
+                }
+            }
+
+            image.icon_name = "application-x-executable-symbolic";
+            return image;
+        }
+
+        /*
+         * Launches the shortcut's desktop entry through the host so
+         * app-mode browsers also work from inside the Flatpak sandbox.
+         */
+        private void launchShortcut (Logic.AppShortcut shortcut) {
+            string[] argv = { "flatpak-spawn", "--host", "gio", "launch", shortcut.path };
+            try {
+                var process = new GLib.Subprocess.newv(argv,
+                    GLib.SubprocessFlags.STDOUT_SILENCE | GLib.SubprocessFlags.STDERR_SILENCE);
+                if (process.wait_check(null)) return;
+            } catch (Error e) {
+                // Fall back to opening the URL directly.
+            }
+
+            if (shortcut.url == "") {
+                var state = Logic.Application.getState();
+                state.actionError = "Could not open shortcut.";
+                state.changed();
+                return;
+            }
+
+            try {
+                GLib.AppInfo.launch_default_for_uri(shortcut.url, null);
+            } catch (Error e) {
+                var state = Logic.Application.getState();
+                state.actionError = "Could not open %s".printf(shortcut.url);
+                state.changed();
             }
         }
 

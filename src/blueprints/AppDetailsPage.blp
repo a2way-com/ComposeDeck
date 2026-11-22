@@ -124,6 +124,20 @@ template $AppDetailsPage: Gtk.Box {
     }
   }
 
+  Gtk.Label shortcutsHeading {
+    label: "Shortcuts";
+    halign: start;
+    hexpand: true;
+    margin-top: 12;
+    margin-bottom: 6;
+    css-classes: ["title"];
+    visible: false;
+  }
+
+  Adw.PreferencesGroup shortcutsGroup {
+    visible: false;
+  }
+
   Gtk.Label servicesHeading {
     label: "Services";
     halign: start;

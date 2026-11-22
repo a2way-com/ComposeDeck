@@ -347,6 +347,72 @@ namespace Logic {
         }
 
         /*
+         * Produces the filename-safe part of a published shortcut name.
+         */
+        public static string shortcutSlug (string value) {
+            string lower = value.down();
+            var safe = new StringBuilder();
+            for (int i = 0; i < lower.length; i++) {
+                char ch = lower[i];
+                if ((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-' || ch == '.') {
+                    safe.append_c(ch);
+                } else {
+                    safe.append_c('-');
+                }
+            }
+            return safe.str;
+        }
+
+        /*
+         * The basename of the managed shortcut file for one app and port.
+         */
+        public static string portShortcutFileName (string appName, uint port) {
+            return "composedeck-%s-%u.desktop".printf(ComposeDeck.shortcutSlug(appName), port);
+        }
+
+        private static bool isPortText (string text) {
+            if (text == "") return false;
+            for (int i = 0; i < text.length; i++) {
+                if (text[i] < '0' || text[i] > '9') return false;
+            }
+            return true;
+        }
+
+        /*
+         * Returns every shortcut ComposeDeck published for an app. The
+         * managed files are named composedeck-<app>-<port>.desktop.
+         */
+        public static GLib.List<AppShortcut> listAppShortcuts (ComposeApp app) {
+            var result = new GLib.List<AppShortcut>();
+            string dirPath = Environment.get_home_dir() + "/.local/share/applications";
+            string prefix = "composedeck-" + ComposeDeck.shortcutSlug(app.name) + "-";
+
+            try {
+                var handle = Dir.open(dirPath);
+                string? entry;
+                while ((entry = handle.read_name()) != null) {
+                    if (!entry.has_prefix(prefix) || !entry.has_suffix(".desktop")) continue;
+                    string portText = entry.substring(prefix.length, entry.length - prefix.length - 8);
+                    if (!ComposeDeck.isPortText(portText)) continue;
+
+                    uint port = uint.parse(portText);
+                    var shortcut = AppShortcut.load(dirPath + "/" + entry, port);
+                    if (shortcut != null) {
+                        result.append(shortcut);
+                    }
+                }
+            } catch (Error e) {
+                // The applications folder may not exist yet.
+            }
+
+            result.sort((a, b) => {
+                if (a.port != b.port) return (int) a.port - (int) b.port;
+                return strcmp(a.name, b.name);
+            });
+            return result;
+        }
+
+        /*
          * Builds a managed shortcut entry that opens the URL in app mode.
          */
         public static string buildOwnBrowserShortcut (WebAppBrowser browser, string name, string icon, string url, string fileBase) {

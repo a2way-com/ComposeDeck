@@ -1,0 +1,48 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $ShortcutEditor: Adw.MessageDialog {
+  modal: true;
+  extra-child: Gtk.Box {
+    orientation: vertical;
+    spacing: 8;
+
+    Gtk.Entry nameEntry {
+      placeholder-text: "Name";
+    }
+
+    Gtk.Entry urlEntry {
+      placeholder-text: "URL";
+    }
+
+    Gtk.Box {
+      orientation: horizontal;
+      spacing: 8;
+
+      Gtk.Image iconPreview {
+        pixel-size: 24;
+      }
+
+      Gtk.Entry iconEntry {
+        placeholder-text: "Icon name or image";
+        hexpand: true;
+      }
+
+      Gtk.Button chooseIcon {
+        label: "Choose…";
+        hexpand: false;
+        valign: center;
+      }
+    }
+
+    Gtk.CheckButton ownBrowserCheck {
+      label: "Open in own browser";
+    }
+
+    Gtk.Button defaultsButton {
+      label: "Set to defaults";
+      halign: start;
+      css-classes: ["flat"];
+    }
+  };
+}

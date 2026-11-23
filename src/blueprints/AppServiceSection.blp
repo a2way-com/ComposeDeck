@@ -3,4 +3,73 @@ using Adw 1;
 
 template $AppServiceSection: Adw.PreferencesGroup {
   hexpand: true;
+
+  Adw.ActionRow headerRow {
+    activatable: false;
+
+    Gtk.Button logsButton {
+      hexpand: false;
+      valign: center;
+      css-classes: ["flat"];
+      tooltip-text: "Show logs";
+      child: Gtk.Image {
+        icon-name: "utilities-terminal-symbolic";
+        pixel-size: 16;
+      };
+    }
+  }
+
+  Adw.ActionRow imageRow {
+    title: "Image";
+    activatable: false;
+    visible: false;
+
+    Gtk.Label imageValue {
+      selectable: true;
+      xalign: 1;
+      hexpand: true;
+      halign: end;
+      ellipsize: end;
+    }
+
+    Gtk.Button imageCopy {
+      hexpand: false;
+      valign: center;
+      css-classes: ["flat"];
+      tooltip-text: "Copy image";
+      child: Gtk.Image {
+        icon-name: "edit-copy-symbolic";
+        pixel-size: 16;
+      };
+    }
+  }
+
+  Adw.ActionRow containerRow {
+    title: "Container";
+    activatable: false;
+    visible: false;
+
+    Gtk.Label containerValue {
+      selectable: true;
+      xalign: 1;
+      hexpand: true;
+      halign: end;
+    }
+
+    Gtk.Button containerCopy {
+      hexpand: false;
+      valign: center;
+      css-classes: ["flat"];
+      tooltip-text: "Copy container name";
+      child: Gtk.Image {
+        icon-name: "edit-copy-symbolic";
+        pixel-size: 16;
+      };
+    }
+  }
+
+  Adw.ExpanderRow portsExpander {
+    title: "Ports";
+    visible: false;
+  }
 }

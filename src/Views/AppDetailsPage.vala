@@ -17,7 +17,6 @@ namespace Views {
         [GtkChild] private unowned Adw.ActionRow projectRow;
         [GtkChild] private unowned Adw.ActionRow statusRow;
         [GtkChild] private unowned Gtk.Label refreshedLabel;
-        [GtkChild] private unowned Adw.ActionRow actionsRow;
         [GtkChild] private unowned Gtk.Button openButton;
         [GtkChild] private unowned Gtk.Button pathCopyButton;
         [GtkChild] private unowned Gtk.Button composeButton;
@@ -28,12 +27,13 @@ namespace Views {
         [GtkChild] private unowned Adw.Spinner actionSpinner;
         [GtkChild] private unowned Gtk.Label shortcutsHeading;
         [GtkChild] private unowned Adw.PreferencesGroup shortcutsGroup;
+        [GtkChild] private unowned Adw.PreferencesGroup podmanBanner;
+        [GtkChild] private unowned Gtk.Button retryButton;
         [GtkChild] private unowned Gtk.Box servicesBox;
 
         private Logic.State state;
         private List<Adw.PreferencesGroup> serviceGroups = new List<Adw.PreferencesGroup> ();
         private List<Adw.PreferencesRow> shortcutRows = new List<Adw.PreferencesRow> ();
-        private Adw.PreferencesGroup? podmanBanner;
 
         public AppDetailsPage () {
             this.state = Logic.Application.getState();
@@ -45,35 +45,9 @@ namespace Views {
             this.stopButton.clicked.connect(this.onStopAppClicked);
             this.restartButton.clicked.connect(this.onRestartAppClicked);
             this.orphanButton.clicked.connect(this.onRemoveOrphansClicked);
-
-            var pathIcon = new Gtk.Image ();
-            pathIcon.icon_name = "edit-copy-symbolic";
-            pathIcon.set_pixel_size (16);
-            this.pathCopyButton.set_child (pathIcon);
-
-            this.addIconButton (this.startButton, "media-playback-start-symbolic");
-            this.addIconButton (this.stopButton, "media-playback-stop-symbolic");
-            this.addIconButton (this.restartButton, "view-refresh-symbolic");
-            this.addIconButton (this.orphanButton, "user-trash-symbolic");
+            this.retryButton.clicked.connect(this.onRetryClicked);
 
             this.render();
-        }
-
-        private void addIconButton (Gtk.Button button, string iconName) {
-            var box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 6);
-            box.set_halign (Gtk.Align.CENTER);
-            box.set_valign (Gtk.Align.CENTER);
-
-            var image = new Gtk.Image ();
-            image.icon_name = iconName;
-            image.set_pixel_size (16);
-            box.append (image);
-
-            var label = new Gtk.Label (button.label);
-            box.append (label);
-
-            button.label = "";
-            button.set_child (box);
         }
 
         private void render () {
@@ -139,28 +113,7 @@ namespace Views {
             }
 
             this.renderShortcuts (selected);
-
-            // Podman unreachable banner
-            if (!this.state.podmanReachable) {
-                if (this.podmanBanner == null) {
-                    this.podmanBanner = new Adw.PreferencesGroup ();
-                    var row = new Adw.ActionRow ();
-                    row.set_title ("Podman is not reachable");
-                    row.set_subtitle ("ComposeDeck cannot query container state.");
-                    var retry = new Gtk.Button ();
-                    retry.set_label ("Retry");
-                    retry.set_hexpand (false);
-                    retry.set_valign (Gtk.Align.CENTER);
-                    retry.set_css_classes (new string[] { "flat" });
-                    retry.clicked.connect (this.onRetryClicked);
-                    row.add_suffix (retry);
-                    this.podmanBanner.add (row);
-                }
-                this.servicesBox.insert_child_after (this.podmanBanner, null);
-            } else if (this.podmanBanner != null) {
-                this.servicesBox.remove (this.podmanBanner);
-                this.podmanBanner = null;
-            }
+            this.podmanBanner.set_visible(!this.state.podmanReachable);
 
             foreach (var group in this.serviceGroups) {
                 this.servicesBox.remove(group);
@@ -168,12 +121,9 @@ namespace Views {
             this.serviceGroups = new List<Adw.PreferencesGroup> ();
 
             foreach (var service in selected.services) {
-                var serviceGroup = new Adw.PreferencesGroup ();
-                this.servicesBox.append(serviceGroup);
-                this.serviceGroups.append(serviceGroup);
-
                 var section = new Views.AppServiceSection(service, selected, this.get_toplevel_window());
-                section.add_to(serviceGroup);
+                this.servicesBox.append(section);
+                this.serviceGroups.append(section);
             }
         }
 
@@ -193,71 +143,15 @@ namespace Views {
             this.shortcutsGroup.set_visible(hasShortcuts);
 
             foreach (var shortcut in shortcuts) {
-                var row = this.buildShortcutRow(shortcut, app.name);
+                var row = new Views.ShortcutRow(shortcut);
+                row.change_requested.connect(() => {
+                    var dialog = new Views.ShortcutEditor(app.name, shortcut.port, this.get_toplevel_window());
+                    dialog.present();
+                });
+                row.open_requested.connect(() => this.launchShortcut(shortcut));
                 this.shortcutsGroup.add(row);
                 this.shortcutRows.append(row);
             }
-        }
-
-        private Adw.ActionRow buildShortcutRow (Logic.AppShortcut shortcut, string appName) {
-            var row = new Adw.ActionRow();
-            row.set_activatable(true);
-            row.set_title(shortcut.name);
-            if (shortcut.url != "") {
-                row.set_subtitle(shortcut.url);
-            }
-            row.set_tooltip_text("Open %s".printf(shortcut.name));
-
-            var icon = this.buildShortcutIcon(shortcut.icon);
-            icon.set_valign(Gtk.Align.CENTER);
-            row.add_prefix(icon);
-
-            var changeButton = new Gtk.Button.with_label("Change shortcut");
-            changeButton.set_hexpand(false);
-            changeButton.set_valign(Gtk.Align.CENTER);
-            changeButton.set_css_classes(new string[] { "flat" });
-            changeButton.clicked.connect(() => {
-                var dialog = new Views.ShortcutEditor(appName, shortcut.port, this.get_toplevel_window());
-                dialog.present();
-            });
-            row.add_suffix(changeButton);
-
-            var openButton = new Gtk.Button();
-            var openIcon = new Gtk.Image();
-            openIcon.icon_name = "web-browser-symbolic";
-            openIcon.set_pixel_size(16);
-            openButton.set_child(openIcon);
-            openButton.set_hexpand(false);
-            openButton.set_valign(Gtk.Align.CENTER);
-            openButton.set_css_classes(new string[] { "flat" });
-            openButton.set_tooltip_text(shortcut.ownBrowser ? "Open in own browser" : "Open in browser");
-            openButton.clicked.connect(() => this.launchShortcut(shortcut));
-            row.add_suffix(openButton);
-
-            row.activated.connect(() => this.launchShortcut(shortcut));
-            return row;
-        }
-
-        private Gtk.Image buildShortcutIcon (string iconValue) {
-            var image = new Gtk.Image();
-            image.set_pixel_size(40);
-
-            if (iconValue.has_prefix("/") && GLib.File.new_for_path(iconValue).query_exists()) {
-                image.set_from_file(iconValue);
-                return image;
-            }
-
-            if (iconValue != "") {
-                var display = Gdk.Display.get_default();
-                var theme = display != null ? Gtk.IconTheme.get_for_display(display) : null;
-                if (theme != null && theme.has_icon(iconValue)) {
-                    image.icon_name = iconValue;
-                    return image;
-                }
-            }
-
-            image.icon_name = "application-x-executable-symbolic";
-            return image;
         }
 
         /*
@@ -367,19 +261,14 @@ namespace Views {
             }
             if (names.len == 0) return;
 
-            var dialog = new Adw.MessageDialog (
-                this.get_toplevel_window (),
-                "Remove orphan containers?",
-                "These containers are not declared in the compose file: %s".printf (names.str));
-            dialog.add_response ("cancel", "Cancel");
-            dialog.add_response ("remove", "Remove");
-            dialog.set_response_appearance ("remove", Adw.ResponseAppearance.DESTRUCTIVE);
-            dialog.set_default_response ("cancel");
-            dialog.set_close_response ("cancel");
-            dialog.response.connect ((response) => {
+            var dialog = new Views.OrphansDialog (
+                names.str,
+                this.get_toplevel_window ());
+            dialog.response.connect ((d, response) => {
                 if (response == "remove") {
                     Logic.ComposeDeck.removeOrphans (selected);
                 }
+                d.close ();
             });
             dialog.present ();
         }

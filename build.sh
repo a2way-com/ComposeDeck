@@ -14,14 +14,16 @@ for blueprint in "$SRCDIR"/src/blueprints/*.blp; do
     blueprint-compiler compile "$blueprint" --output "$BUILDDIR/ui/$name.ui"
 done
 
-# Generate the GResource manifest listing every compiled .ui file.
+cp "$SRCDIR/src/style.css" "$BUILDDIR/ui/style.css"
+
+# Generate the GResource manifest listing every compiled resource.
 {
     echo '<?xml version="1.0" encoding="UTF-8"?>'
     echo '<gresources>'
     echo '  <gresource prefix="/com/a2way/ComposeDeck">'
-    for ui in "$BUILDDIR"/ui/*.ui; do
-        [ -e "$ui" ] || continue
-        echo "    <file>$(basename "$ui")</file>"
+    for resource in "$BUILDDIR"/ui/*.ui "$BUILDDIR"/ui/*.css; do
+        [ -e "$resource" ] || continue
+        echo "    <file>$(basename "$resource")</file>"
     done
     echo '  </gresource>'
     echo '</gresources>'

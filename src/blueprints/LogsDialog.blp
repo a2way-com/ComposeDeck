@@ -1,0 +1,64 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $LogsDialog: Adw.MessageDialog {
+  modal: true;
+  extra-child: Gtk.Box {
+    orientation: vertical;
+    spacing: 8;
+
+    Gtk.Box {
+      orientation: horizontal;
+      spacing: 6;
+
+      Gtk.DropDown tailDrop {
+      }
+
+      Gtk.Button refreshButton {
+        hexpand: false;
+        valign: center;
+        css-classes: ["flat"];
+        tooltip-text: "Refresh";
+        child: Gtk.Image {
+          icon-name: "view-refresh-symbolic";
+          pixel-size: 16;
+        };
+      }
+
+      Gtk.Button copyButton {
+        hexpand: false;
+        valign: center;
+        css-classes: ["flat"];
+        tooltip-text: "Copy all";
+        child: Gtk.Image {
+          icon-name: "edit-copy-symbolic";
+          pixel-size: 16;
+        };
+      }
+
+      Gtk.Button saveButton {
+        hexpand: false;
+        valign: center;
+        css-classes: ["flat"];
+        tooltip-text: "Save to file";
+        child: Gtk.Image {
+          icon-name: "document-save-symbolic";
+          pixel-size: 16;
+        };
+      }
+    }
+
+    Gtk.ScrolledWindow {
+      vexpand: true;
+      hexpand: true;
+      min-content-height: 400;
+      min-content-width: 600;
+
+      Gtk.TextView logView {
+        editable: false;
+        cursor-visible: false;
+        monospace: true;
+      }
+    }
+  };
+}

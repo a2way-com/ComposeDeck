@@ -8,6 +8,8 @@ VALA_SOURCES := $(VALA_LOGIC) $(VALA_VIEWS)
 BLP_FILES := $(wildcard src/blueprints/*.blp)
 UI_DIR      := build/ui
 UI_FILES    := $(patsubst src/blueprints/%.blp,$(UI_DIR)/%.ui,$(BLP_FILES))
+STYLE_FILE  := src/style.css
+STYLE_RESOURCE := $(UI_DIR)/style.css
 GRESOURCE_XML := build/compose-deck.gresource.xml
 GRESOURCE_C  := build/compose-deck.c
 BINARY       := build/bin/composedeck
@@ -22,31 +24,35 @@ SDK_PATH := $(HOME)/.local/share/flatpak/runtime/org.gnome.Sdk/x86_64/51/3bb470f
 
 all: flatpak-build
 
-blueprint: $(UI_FILES)
+blueprint: $(UI_FILES) $(STYLE_RESOURCE)
 
 $(UI_DIR)/%.ui: src/blueprints/%.blp
 	@mkdir -p $(UI_DIR)
 	GI_TYPELIB_PATH="$(SDK_PATH)/lib/x86_64-linux-gnu/girepository-1.0:$(SDK_PATH)/lib/girepository-1.0" XDG_DATA_DIRS="$(SDK_PATH)/share" $(BLUEPRINT) compile $< --output $@
 
-# Auto-generate GResource XML from all .ui files
-$(GRESOURCE_XML): $(UI_FILES)
+$(STYLE_RESOURCE): $(STYLE_FILE)
+	@mkdir -p $(UI_DIR)
+	cp $< $@
+
+# Auto-generate GResource XML from all .ui files and stylesheets
+$(GRESOURCE_XML): $(UI_FILES) $(STYLE_RESOURCE)
 	@mkdir -p build
 	@echo "Generating $(GRESOURCE_XML) from $(UI_FILES)..."
 	@{ \
 		echo '<?xml version="1.0" encoding="UTF-8"?>'; \
 		echo '<gresources>'; \
 		echo '  <gresource prefix="$(GRESOURCE_PREFIX)">'; \
-		for f in $(UI_FILES); do echo "    <file>$(notdir $$f)</file>"; done; \
+		for f in $(UI_FILES) $(STYLE_RESOURCE); do echo "    <file>$(notdir $$f)</file>"; done; \
 		echo '  </gresource>'; \
 		echo '</gresources>'; \
 	} > $@
 
 # Compile GResource XML into C
-$(GRESOURCE_C): $(GRESOURCE_XML) $(UI_FILES)
+$(GRESOURCE_C): $(GRESOURCE_XML) $(UI_FILES) $(STYLE_RESOURCE)
 	glib-compile-resources --sourcedir=$(UI_DIR) --generate-source --target=$@ $(GRESOURCE_XML)
 
 # Native build (requires GTK dev headers; prefer flatpak-build normally)
-$(BINARY): $(VALA_SOURCES) $(GRESOURCE_C) $(UI_FILES) $(BLP_FILES)
+$(BINARY): $(VALA_SOURCES) $(GRESOURCE_C) $(UI_FILES) $(STYLE_RESOURCE) $(BLP_FILES)
 	@mkdir -p build/bin
 	$(VALAC) $(VALAC_FLAGS) \
 		--gresources=$(GRESOURCE_XML) --gresourcesdir=$(UI_DIR) \

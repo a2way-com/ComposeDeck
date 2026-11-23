@@ -1,0 +1,66 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $SettingsWindow: Adw.PreferencesWindow {
+  title: "Settings";
+  modal: true;
+
+  Adw.PreferencesPage {
+    Adw.PreferencesGroup {
+      title: "Applications directory";
+      description: "Folder ComposeDeck scans for compose projects.";
+
+      Adw.ActionRow {
+        title: "Apps directory";
+
+        Gtk.Entry appsEntry {
+          placeholder-text: "~/Apps";
+          hexpand: true;
+          width-chars: 40;
+          valign: center;
+          margin-top: 6;
+          margin-bottom: 6;
+          margin-start: 6;
+          margin-end: 6;
+        }
+      }
+
+      Adw.ActionRow {
+        title: "Reset to default";
+        subtitle: "Use ~/Apps";
+        activatable: true;
+
+        Gtk.Button resetButton {
+          label: "Reset";
+          hexpand: false;
+          valign: center;
+          css-classes: ["suggested-action"];
+          margin-top: 6;
+          margin-bottom: 6;
+        }
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: "Scanning";
+
+      Adw.ComboRow intervalRow {
+        title: "Refresh interval";
+      }
+
+      Adw.SwitchRow pinnedRow {
+        title: "Pinned apps first";
+        subtitle: "Show pinned apps before others";
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: "Web apps";
+
+      Adw.ComboRow browserRow {
+        title: "App browser";
+        subtitle: "Used by shortcuts that open in their own browser";
+      }
+    }
+  }
+}

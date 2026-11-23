@@ -1,0 +1,23 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $ShortcutRow: Adw.ActionRow {
+  activatable: true;
+
+  Gtk.Button changeButton {
+    label: "Change shortcut";
+    hexpand: false;
+    valign: center;
+    css-classes: ["flat"];
+  }
+
+  Gtk.Button openButton {
+    hexpand: false;
+    valign: center;
+    css-classes: ["flat"];
+    child: Gtk.Image {
+      icon-name: "web-browser-symbolic";
+      pixel-size: 16;
+    };
+  }
+}

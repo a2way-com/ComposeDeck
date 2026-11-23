@@ -29,13 +29,16 @@ template $AppDetailsPage: Gtk.Box {
       }
 
       Gtk.Button pathCopyButton {
-        label: "Copy";
         hexpand: false;
         halign: end;
         valign: center;
         css-classes: ["flat"];
         margin-top: 6;
         margin-bottom: 6;
+        child: Gtk.Image {
+          icon-name: "edit-copy-symbolic";
+          pixel-size: 16;
+        };
       }
 
       Gtk.Button composeButton {
@@ -74,40 +77,88 @@ template $AppDetailsPage: Gtk.Box {
         valign: center;
 
         Gtk.Button startButton {
-          label: "Start";
           hexpand: false;
           valign: center;
           css-classes: ["flat"];
           margin-top: 6;
           margin-bottom: 6;
+          child: Gtk.Box {
+            orientation: horizontal;
+            spacing: 6;
+            halign: center;
+            valign: center;
+            Gtk.Image {
+              icon-name: "media-playback-start-symbolic";
+              pixel-size: 16;
+            }
+            Gtk.Label {
+              label: "Start";
+            }
+          };
         }
 
         Gtk.Button stopButton {
-          label: "Stop";
           hexpand: false;
           valign: center;
           css-classes: ["flat"];
           margin-top: 6;
           margin-bottom: 6;
+          child: Gtk.Box {
+            orientation: horizontal;
+            spacing: 6;
+            halign: center;
+            valign: center;
+            Gtk.Image {
+              icon-name: "media-playback-stop-symbolic";
+              pixel-size: 16;
+            }
+            Gtk.Label {
+              label: "Stop";
+            }
+          };
         }
 
         Gtk.Button restartButton {
-          label: "Restart";
           hexpand: false;
           valign: center;
           css-classes: ["flat"];
           margin-top: 6;
           margin-bottom: 6;
+          child: Gtk.Box {
+            orientation: horizontal;
+            spacing: 6;
+            halign: center;
+            valign: center;
+            Gtk.Image {
+              icon-name: "view-refresh-symbolic";
+              pixel-size: 16;
+            }
+            Gtk.Label {
+              label: "Restart";
+            }
+          };
         }
 
         Gtk.Button orphanButton {
-          label: "Remove orphans";
           hexpand: false;
           valign: center;
           css-classes: ["flat"];
           tooltip-text: "Remove containers that are not in the compose file";
           margin-top: 6;
           margin-bottom: 6;
+          child: Gtk.Box {
+            orientation: horizontal;
+            spacing: 6;
+            halign: center;
+            valign: center;
+            Gtk.Image {
+              icon-name: "user-trash-symbolic";
+              pixel-size: 16;
+            }
+            Gtk.Label {
+              label: "Remove orphans";
+            }
+          };
         }
 
         Adw.Spinner actionSpinner {
@@ -153,5 +204,23 @@ template $AppDetailsPage: Gtk.Box {
     hexpand: true;
     halign: fill;
     valign: start;
+
+    Adw.PreferencesGroup podmanBanner {
+      visible: false;
+
+      Adw.ActionRow {
+        title: "Podman is not reachable";
+        subtitle: "ComposeDeck cannot query container state.";
+
+        Gtk.Button retryButton {
+          label: "Retry";
+          hexpand: false;
+          valign: center;
+          css-classes: ["flat"];
+          margin-top: 6;
+          margin-bottom: 6;
+        }
+      }
+    }
   }
 }

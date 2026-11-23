@@ -42,30 +42,7 @@ namespace Views {
 
             // Style overview cards: background without hover highlight.
             var css = new Gtk.CssProvider();
-            css.load_from_string("""
-                .overview-card {
-                    background-color: #2d2d2d;
-                    border: 2px solid transparent;
-                    border-radius: 12px;
-                }
-                .overview-card:hover {
-                    border-color: @accent_bg_color;
-                }
-                .overview-card:focus {
-                    border-color: @accent_bg_color;
-                }
-                flowboxchild {
-                    background-color: transparent;
-                    background: none;
-                }
-                flowboxchild:hover,
-                flowboxchild:selected,
-                flowboxchild:active {
-                    background-color: transparent;
-                    background: none;
-                    box-shadow: none;
-                }
-            """);
+            css.load_from_resource("/com/a2way/ComposeDeck/style.css");
             Gtk.StyleContext.add_provider_for_display(
                 Gdk.Display.get_default(),
                 css,

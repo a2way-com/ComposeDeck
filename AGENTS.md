@@ -1,69 +1,69 @@
-# Standing Orders for ComposeDeck Development
+# ComposeDeck Agent Guide
 
-Record of user directives to persist across sessions.
+Conventions for contributors and AI agents working on ComposeDeck. User-facing documentation lives in [README.md](README.md).
 
-## Git
-- Never run any Git action (commit, switch, merge, rebase, reset, squash, branch, push, etc.) unless explicitly asked.
-- NEVER make commits unless explicitly asked with `cmt`. User commits manually.
-- Never auto-commit. Never force-push. Create commits only on request.
-- Shorthands: `suc` = show uncommitted changes; `scm` = suggest a commit message (suggested only, no commit).
+## Project
 
-## Architecture (layering)
-- Entry point: `Main.vala` (just `main()`).
-- `Application.vala` — `Adw.Application` lifecycle: creates central `State`, presents window, owns no business logic.
-- `ComposeDeck.vala` — pure business logic + orchestration (manipulates views through central `State`), no GTK templates.
-- `ComposeService.vala` — talks with the Compose provider (podman socket REST `is_running`).
-- `State.vala` (in Logic) — central state (`apps`, `total`, `running_count`, `selectedPath`, `overview_selected`) with `changed` signal. UI merely reads from it via `Logic.Application.getState()`.
-- View files (`src/Views/*.vala` = controllers) — only GUI: template bindings, signals, rendering from `State`. No business logic, no polling timers.
-- A 10-second polling timer? Orchestration lives in `ComposeDeck`, mutating `State` (which emits `changed`); views render on that signal.
+ComposeDeck is a GTK4/libadwaita app for managing Docker Compose projects on Podman or Docker. It discovers compose projects in a configurable folder (default `~/Apps`), reads service state from the engine's Docker-compatible API, and provides start/stop/restart, logs, ports, orphan cleanup, and web-app shortcuts.
+
+## Architecture
+
+- `src/Logic/Main.vala` — entry point; runs `Logic.Application`.
+- `src/Logic/Application.vala` — `Adw.Application` lifecycle. Creates the central `State`, presents `Views.Window`, and calls `ComposeDeck.start()`. Views obtain state through `Logic.Application.getState()`.
+- `src/Logic/ComposeDeck.vala` — business logic and orchestration. Scans the apps folder, parses compose files, schedules refreshes, and runs app actions. It mutates `State`, then emits `State.changed`.
+- `src/Logic/ComposeService.vala` — container-engine integration. Detects and activates Podman or Docker, then performs the Docker-compatible socket calls. It contains no business orchestration.
+- `src/Logic/State.vala` — shared state and settings: `apps`, `selectedApp` (`null` means Overview), the computed `overviewSelected`, `actionInProgress`, `actionError`/`actionSuccess`, `engineReachable`, `refreshInterval`, `pinnedApps`, window size, and the `changed` signal.
+- `src/Logic/ContainerEngine.vala`, `ComposeApp.vala`, `AppService.vala`, `AppPort.vala`, `AppShortcut.vala`, and `WebAppBrowser.vala` — engine, model, and helper types.
+- `src/Views/*.vala` — GTK controllers. They own template bindings, signals, and rendering from `State`. They contain no business logic and no polling timers.
+
+`ComposeDeck.start()` installs a one-second timeout that rediscovers apps once the configured `State.refreshInterval` (default 10 seconds) has elapsed. Views re-render when `State` emits `changed`; do not add polling timers to views.
 
 ## UI declaration
-- All UI in `.blp` (Blueprint) files under `src/blueprints/`. Compiled to `.ui` at build time. Resource IDs are filename-based (`/com/a2way/ComposeDeck/X.ui`).
-- Vala uses `[GtkTemplate (ui = ".../X.ui")]`, `[GtkChild]`, `[GtkCallback]`. No `Gtk.Builder`.
-- One class per template. CamelCase for our identifiers; library methods keep their names.
+
+- All UI lives in `.blp` (Blueprint) files under `src/blueprints/` and compiles to `.ui` at build time. Resource IDs are filename-based, for example `/com/a2way/ComposeDeck/Window.ui`.
+- Vala classes use `[GtkTemplate (ui = "...")]`, `[GtkChild]`, and `[GtkCallback]`. Do not use `Gtk.Builder`.
+- Use one class per template. Prefer camelCase for project identifiers, and keep library methods under their own names.
 
 ## Layout / UX
-- GNOME Settings style: `Adw.NavigationSplitView` as window content, sidebar spans full height.
-- Sidebar (`Sidebar` partial) has its own `Adw.HeaderBar` with app name ("ComposeDeck") + hamburger `GtkMenuButton` (GMenu: About, Quit).
-- Content area (`ContentArea`) has its own header with dynamic title (Overview / app name) + window close button.
-- No duplicated titles between headers.
-- `AdwToastOverlay` wraps the split view.
-- Use `.flat` and minimal margins on header/menu widgets to avoid "hovered" look; avoid the 1px seam by hiding split-view separators and header bar borders (CSS).
-- Indicator dots for running/stopped apps: use markup with `use-markup=true`.
 
-## Build / autoload
-- `Makefile` and `build.sh` auto-discover `*.vala` and `*.blp` (wildcards). Adding a file needs no build edit.
-- Generated artifacts (`.ui`, `compose-deck.gresource.xml`, `compose-deck.c`, binary) live under `build/`, never in project root or `src/`.
-- `.ui` files are gitignored (generated from `.blp`).
-- Build must be containerized: `blueprint-compiler`, `glib-compile-resources`, `valac` run inside the GNOME 51 SDK (`flatpak build`). No host tools, no pip, no brew.
-- Manifest uses `buildsystem: simple` with `sh build.sh`; sources use `dir` type.
-- Never auto-commit. Don't install arbitrary deps via apt/brew/pip on host.
+- Follow a GNOME Settings-style layout: `Adw.NavigationSplitView` inside an `Adw.ToastOverlay`, with the sidebar spanning the full height.
+- `Sidebar` owns the left `Adw.HeaderBar` (app title and hamburger menu via `Hamburger`), the search entry, and the app list. The menu contains About, Settings, and Quit.
+- `ContentArea` owns the right `Adw.HeaderBar` with a dynamic title ("Overview" or the selected app) and the window controls.
+- Do not repeat the same title across both headers.
+- Keep header and menu widgets flat and minimally padded.
+- Render running/stopped indicators as markup (a coloured `●`), using `set_markup` or `use-markup`.
+
+## Build
+
+- `build.sh` compiles every `src/blueprints/*.blp`, generates the GResource bundle, and builds every `src/Logic/*.vala` and `src/Views/*.vala` source. New files are discovered automatically; no build edits are needed.
+- The Flatpak manifest uses `buildsystem: simple` with `sh build.sh` and a `dir` source. Build with the GNOME 51 SDK (`org.gnome.Sdk//51`), as the Makefile and CI do.
+- `Makefile` targets: `flatpak-build`, `flatpak-run`, `bundle`, `flatpak-repo`, and `clean`.
+- Keep generated artifacts (`*.ui`, `compose-deck.gresource.xml`, `compose-deck.c`, and binaries) under `build/` or the build script's temporary directory. Never put them in `src/` or the project root; `*.ui` is gitignored.
+- Do not add host-only build dependencies; the build tools come from the Flatpak SDK.
 
 ## Code style
-- Method names camelCase (`discoverApps`, `computeStats`, `updateStatus`, `onSearchChanged`, etc.). Library methods (e.g. `get_first_child`, `set_markup`) keep snake_case.
-- Method / constructor **calls** have no space before `(`: `foo (x)` → `foo(x)`, `new Foo ()` → `new Foo()`. **Declarations** (e.g. `private void foo () {`) retain the single space before `(`, matching Vala convention.
-- Section comments, when used, must follow:
+
+- Methods and functions are camelCase (`discoverApps`, `fetchApps`, `listServices`). Vala library methods keep snake_case (`get_first_child`, `set_markup`).
+- Declarations keep a space before the parameter list (`private void foo ()`); calls omit it (`foo()`, `new Foo()`).
+- Section comments use:
   ```vala
-  /* ----
+  /*
    * Section name
    */
   ```
-  Not the `/* ---------- Section ---------- */` form.
-- Namespace blocks indented one level (4 spaces) for classes/members.
-- Null-guards on `[GtkChild]` fields are unnecessary (guaranteed bound in constructor) — don't add them.
-- Use `this.` when accessing instance fields, properties, and methods (e.g. `this.state = ...`, `this.app = app`, `this.render()`, `this.set_visible(true)`).
+  Avoid banner comments and editorial asides.
+- Indent namespace contents one level (4 spaces).
+- `[GtkChild]` fields are bound in the template constructor; do not add null guards for them.
+- Use `this.` for instance fields, properties, and methods.
+- Prefix view classes with `[CCode (cname = "...")]` so Blueprint `template class="X"` resolves to the generated type name.
+- Keep class names aligned with their file names.
 
-## Naming / dirs
-- `src/Logic`, `src/Views`, `src/blueprints`, `build/`.
-- Namespace classes to match: `namespace Logic { }`, `namespace Views { }`.
-- Use `[CCode (cname = "...")]` on view classes so GtkTemplate `template class="X"` resolves to the original type name.
-- Class name should match file name (e.g. `Application` in `Application.vala`).
-- No `public/index.php`-style comments or other editorial cruft.
+## Documentation
 
-## Standing rules
-- Never commit unless user says `cmt`.
-- Never auto-commit after changes.
-- Ask before large architectural moves only if ambiguous; prefer implementing then committing only on request.
-- Prefer flatpak containerized builds. Don't touch host tooling.
+- Do not manually wrap Markdown prose. Keep each paragraph and list item on one line and let the renderer wrap it.
+- Keep `README.md` user-facing and `AGENTS.md` contributor-facing.
 
-Last updated from session directives.
+## Repository rules
+
+- Do not commit generated build artifacts or local Flatpak state.
+- Keep behavior in `ComposeDeck`/`State` and presentation in views; do not move orchestration into the UI layer.

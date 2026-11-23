@@ -2,7 +2,7 @@
 <component type="desktop-application">
   <id>com.a2way.ComposeDeck</id>
   <name>ComposeDeck</name>
-  <summary>Manage Docker Compose projects with Podman</summary>
+  <summary>Manage Docker Compose projects with Podman or Docker</summary>
 
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
@@ -12,7 +12,7 @@
   </developer>
 
   <description>
-    <p>ComposeDeck is a desktop app for managing Docker Compose projects running on Podman.</p>
+    <p>ComposeDeck is a desktop app for managing Docker Compose projects running on Podman or Docker.</p>
     <p>It scans a folder for compose projects, shows which services are running, and lets you start, stop, and restart individual apps or all of them at once.</p>
     <p>Features include:</p>
     <ul>
@@ -21,7 +21,7 @@
       <li>Start, stop, and restart controls for single services or whole projects</li>
       <li>Search, filters, and pinned projects</li>
     </ul>
-    <p>ComposeDeck talks directly to the Podman API socket and does not require a separate Compose binary.</p>
+    <p>ComposeDeck talks directly to the Podman or Docker API socket and does not require a separate Compose binary.</p>
   </description>
 
   <launchable type="desktop-id">com.a2way.ComposeDeck.desktop</launchable>

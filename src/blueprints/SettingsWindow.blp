@@ -42,6 +42,16 @@ template $SettingsWindow: Adw.PreferencesWindow {
     }
 
     Adw.PreferencesGroup {
+      title: "Container engine";
+      description: "ComposeDeck talks to Podman or Docker over its Docker-compatible API.";
+
+      Adw.ComboRow engineRow {
+        title: "Engine";
+        subtitle: "Auto-detect prefers Podman when both are available";
+      }
+    }
+
+    Adw.PreferencesGroup {
       title: "Scanning";
 
       Adw.ComboRow intervalRow {

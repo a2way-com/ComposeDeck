@@ -8,9 +8,10 @@ namespace Logic {
         public bool actionInProgress = false;
         public string? actionError = null;
         public string? actionSuccess = null;
-        public bool podmanReachable = true;
+        public bool engineReachable = true;
         public int64 lastUpdated = 0;
         public string appsDir { get; set; }
+        public string containerEngine = "auto";
         public int refreshInterval = 10;
         public bool pinnedFirst = true;
         public int windowWidth = 1000;
@@ -116,6 +117,12 @@ namespace Logic {
                 if (obj != null && obj.has_member("webAppBrowser")) {
                     this.webAppBrowser = obj.get_string_member("webAppBrowser");
                 }
+                if (obj != null && obj.has_member("containerEngine")) {
+                    string engine = obj.get_string_member("containerEngine");
+                    if (engine == "podman" || engine == "docker") {
+                        this.containerEngine = engine;
+                    }
+                }
                 if (obj != null && obj.has_member("pinned")) {
                     var pinnedArray = obj.get_array_member("pinned");
                     for (int i = 0; i < pinnedArray.get_length(); i++) {
@@ -142,6 +149,8 @@ namespace Logic {
             builder.add_int_value(this.windowHeight);
             builder.set_member_name("webAppBrowser");
             builder.add_string_value(this.webAppBrowser);
+            builder.set_member_name("containerEngine");
+            builder.add_string_value(this.containerEngine);
             builder.set_member_name("pinned");
             builder.begin_array();
             foreach (var pinned in this.pinnedApps) {

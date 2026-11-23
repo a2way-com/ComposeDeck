@@ -27,7 +27,7 @@ namespace Views {
         [GtkChild] private unowned Adw.Spinner actionSpinner;
         [GtkChild] private unowned Gtk.Label shortcutsHeading;
         [GtkChild] private unowned Adw.PreferencesGroup shortcutsGroup;
-        [GtkChild] private unowned Adw.PreferencesGroup podmanBanner;
+        [GtkChild] private unowned Adw.PreferencesGroup engineBanner;
         [GtkChild] private unowned Gtk.Button retryButton;
         [GtkChild] private unowned Gtk.Box servicesBox;
 
@@ -113,7 +113,7 @@ namespace Views {
             }
 
             this.renderShortcuts (selected);
-            this.podmanBanner.set_visible(!this.state.podmanReachable);
+            this.engineBanner.set_visible(!this.state.engineReachable);
 
             foreach (var group in this.serviceGroups) {
                 this.servicesBox.remove(group);

@@ -11,7 +11,7 @@ namespace Views {
     [GtkTemplate (ui = "/com/a2way/ComposeDeck/OverviewPage.ui")]
     [CCode (cname = "OverviewPage")]
     public class OverviewPage : Gtk.Box {
-        [GtkChild] private unowned Adw.Banner podmanBanner;
+        [GtkChild] private unowned Adw.Banner engineBanner;
         [GtkChild] private unowned Gtk.Label updatedLabel;
         [GtkChild] private unowned Gtk.Button refreshButton;
         [GtkChild] private unowned Gtk.Label totalValue;
@@ -43,7 +43,7 @@ namespace Views {
             this.startAllButton.clicked.connect(this.onStartAllClicked);
             this.stopAllButton.clicked.connect(this.onStopAllClicked);
             this.restartAllButton.clicked.connect(this.onRestartAllClicked);
-            this.podmanBanner.button_clicked.connect(() => Logic.ComposeDeck.discoverApps ());
+            this.engineBanner.button_clicked.connect(() => Logic.ComposeDeck.discoverApps ());
             this.refreshButton.clicked.connect(() => Logic.ComposeDeck.discoverApps ());
             this.allFilter.toggled.connect(() => this.setFilter ("all", this.allFilter.get_active ()));
             this.runningFilter.toggled.connect(() => this.setFilter ("running", this.runningFilter.get_active ()));
@@ -111,7 +111,7 @@ namespace Views {
         }
 
         private void render () {
-            this.podmanBanner.set_revealed (!this.state.podmanReachable);
+            this.engineBanner.set_revealed (!this.state.engineReachable);
             bool hasPinned = this.state.pinnedApps.length() > 0;
             this.pinnedFilter.set_visible (hasPinned);
             if (!hasPinned && this.activeFilter == "pinned") {
@@ -171,7 +171,7 @@ namespace Views {
                 if (app.serviceCount > 0 && app.runningCount < app.serviceCount) hasStopped = true;
                 if (app.runningCount > 0) hasRunning = true;
             }
-            bool reachable = this.state.podmanReachable;
+            bool reachable = this.state.engineReachable;
             this.startAllButton.set_visible(!this.state.actionInProgress && reachable && hasStopped);
             this.stopAllButton.set_visible(!this.state.actionInProgress && reachable && hasRunning);
             this.restartAllButton.set_visible(!this.state.actionInProgress && reachable && this.state.apps.length() > 0);

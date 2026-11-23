@@ -37,6 +37,8 @@ namespace Logic {
         public static void start (State state) {
             ComposeDeck.state = state;
 
+            ComposeService.setPreferredEngine (state.containerEngine);
+
             var browser = WebAppBrowser.resolve (state.webAppBrowser);
             if (browser == null) {
                 browser = WebAppBrowser.resolve ("");
@@ -65,16 +67,28 @@ namespace Logic {
         }
 
         /*
-         * Blocking discovery: scans ~/Apps/ and queries podman for every app.
-         * Runs off the GTK main thread when called from startApp/stopApp/restartApp;
-         * runs on the main thread when called from start() and the poll timer.
+         * Changes the engine preference and rediscovers apps. Called from
+         * Settings when the user pins Podman or Docker.
+         */
+        public static void setContainerEngine (string engine) {
+            ComposeDeck.state.containerEngine = engine;
+            ComposeDeck.state.saveSettings ();
+            ComposeService.setPreferredEngine (engine);
+            ComposeDeck.discoverApps ();
+        }
+
+        /*
+         * Blocking discovery: scans ~/Apps/ and queries the container engine
+         * for every app. Runs off the GTK main thread when called from
+         * startApp/stopApp/restartApp; runs on the main thread when called
+         * from start() and the poll timer.
          */
         private static void fetchApps (out List<ComposeApp> apps) {
             apps = new List<ComposeApp> ();
             string appsDir = ComposeDeck.state.appsDir;
 
-            // Probe podman once; if it's unreachable every app looks empty.
-            ComposeDeck.state.podmanReachable = ComposeService.ensureService();
+            // Probe the engine once; if it's unreachable every app looks empty.
+            ComposeDeck.state.engineReachable = ComposeService.ensureService();
             ComposeDeck.state.lastUpdated = GLib.get_monotonic_time() / 1000 / 1000;
 
             try {
@@ -184,7 +198,8 @@ namespace Logic {
 
         /*
          * Reads the top-level "name:" from the compose file, falling back to
-         * the folder name. Podman labels containers with this project name.
+         * the folder name. Podman and Docker label containers with this
+         * project name.
          */
         private static string composeProjectName (string path) {
             string fallback = GLib.Path.get_basename(path).down();
@@ -819,7 +834,7 @@ namespace Logic {
         /*
          * Refreshes app state after an action and clears the in-progress
          * flag. The flag is held for a minimum time so that fast local
-         * podman actions still produce visible feedback.
+         * container actions still produce visible feedback.
          */
         private static void finishAppAction (int64 startedAt, string? error = null, string? success = null) {
             List<ComposeApp> apps;

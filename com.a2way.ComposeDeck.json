@@ -11,6 +11,9 @@
     "--device=dri",
     "--filesystem=home",
     "--filesystem=xdg-run/podman:create",
+    "--filesystem=/run/podman/podman.sock",
+    "--filesystem=xdg-run/docker.sock",
+    "--filesystem=/run/docker.sock",
     "--talk-name=org.freedesktop.systemd1",
     "--talk-name=org.freedesktop.Flatpak"
   ],

@@ -205,12 +205,12 @@ template $AppDetailsPage: Gtk.Box {
     halign: fill;
     valign: start;
 
-    Adw.PreferencesGroup podmanBanner {
+    Adw.PreferencesGroup engineBanner {
       visible: false;
 
       Adw.ActionRow {
-        title: "Podman is not reachable";
-        subtitle: "ComposeDeck cannot query container state.";
+        title: "No container engine is reachable";
+        subtitle: "ComposeDeck cannot query Podman or Docker container state.";
 
         Gtk.Button retryButton {
           label: "Retry";

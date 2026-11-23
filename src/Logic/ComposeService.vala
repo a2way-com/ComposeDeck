@@ -3,17 +3,78 @@ using Json;
 
 namespace Logic {
     /*
-     * ComposeService — talks with the Compose provider (podman) over its
-     * Docker-compatible socket. No business orchestration here.
+     * ComposeService — talks with the container engine (Podman or Docker)
+     * over its Docker-compatible socket. No business orchestration here.
      */
 
     public class ComposeService {
         private static int64 lastActivation = 0;
+        private static string preferredEngine = "auto";
+        private static ContainerEngine activeEngine = ContainerEngine.NONE;
+        private static string? activeSocket = null;
 
-        private static string? socketPath () {
+        /*
+         * Picks the engine to use: "auto" (the default), "podman", or
+         * "docker". The next request re-detects the socket.
+         */
+        public static void setPreferredEngine (string engine) {
+            if (engine != "podman" && engine != "docker") engine = "auto";
+            if (ComposeService.preferredEngine == engine) return;
+            ComposeService.preferredEngine = engine;
+            ComposeService.resetEngine ();
+        }
+
+        public static string engineName () {
+            switch (ComposeService.activeEngine) {
+                case ContainerEngine.PODMAN: return "Podman";
+                case ContainerEngine.DOCKER: return "Docker";
+                default: return "container engine";
+            }
+        }
+
+        private static void resetEngine () {
+            ComposeService.activeEngine = ContainerEngine.NONE;
+            ComposeService.activeSocket = null;
+        }
+
+        /*
+         * The Docker-compatible endpoints ComposeDeck knows about.
+         * Podman's rootless socket lives under the runtime directory,
+         * Docker's under the runtime directory for rootless and /run for
+         * rootful. Docker Desktop keeps its socket in the home directory.
+         */
+        private static GLib.List<string> engineSockets (ContainerEngine engine) {
+            var sockets = new GLib.List<string> ();
             string? runtime = Environment.get_variable("XDG_RUNTIME_DIR");
-            if (runtime == null) return null;
-            return runtime + "/podman/podman.sock";
+
+            if (engine == ContainerEngine.PODMAN) {
+                if (runtime != null) sockets.append (runtime + "/podman/podman.sock");
+                sockets.append ("/run/podman/podman.sock");
+            } else if (engine == ContainerEngine.DOCKER) {
+                if (runtime != null) sockets.append (runtime + "/docker.sock");
+                sockets.append (Environment.get_home_dir () + "/.docker/desktop/docker.sock");
+                sockets.append ("/run/docker.sock");
+            }
+            return sockets;
+        }
+
+        /*
+         * A unix:// endpoint from the environment wins over the known
+         * sockets. CONTAINER_HOST is the Podman spelling, DOCKER_HOST the
+         * Docker one.
+         */
+        private static string? overrideSocket () {
+            string? host = Environment.get_variable ("CONTAINER_HOST");
+            if (host == null) host = Environment.get_variable ("DOCKER_HOST");
+            if (host == null || !host.has_prefix ("unix://")) return null;
+            string path = host.substring (7);
+            if (path == "") return null;
+            return path;
+        }
+
+        private static ContainerEngine engineForSocket (string sock) {
+            if (sock.contains ("podman")) return ContainerEngine.PODMAN;
+            return ContainerEngine.DOCKER;
         }
 
         private static bool canConnect (string sock) {
@@ -29,7 +90,7 @@ namespace Logic {
             }
         }
 
-        private static void startService () {
+        private static void startUnit (string unit) {
             try {
                 var proxy = new GLib.DBusProxy.for_bus_sync(GLib.BusType.SESSION,
                     GLib.DBusProxyFlags.NONE, null,
@@ -38,35 +99,88 @@ namespace Logic {
                     "org.freedesktop.systemd1.Manager", null);
                 if (proxy != null) {
                     proxy.call_sync("StartUnit",
-                        new GLib.Variant("(ss)", "podman.service", "replace"),
+                        new GLib.Variant("(ss)", unit, "replace"),
                         GLib.DBusCallFlags.NONE, 1000, null);
                 }
             } catch (Error e) {
-                // systemd unreachable; ignore and retry on the next poll.
+                // The unit may not exist on this system; ignore and retry
+                // on the next poll.
+            }
+        }
+
+        /*
+         * Starts the user services backing the engine. Rootless Podman and
+         * rootless Docker are both session units. Rootful Docker must
+         * already be running; starting it needs administrative privileges.
+         */
+        private static void startService () {
+            if (ComposeService.overrideSocket () != null) return;
+
+            if (ComposeService.preferredEngine == "podman") {
+                ComposeService.startUnit ("podman.service");
+            } else if (ComposeService.preferredEngine == "docker") {
+                ComposeService.startUnit ("docker.service");
+            } else {
+                ComposeService.startUnit ("podman.service");
+                ComposeService.startUnit ("docker.service");
             }
             ComposeService.lastActivation = GLib.get_monotonic_time();
         }
 
+        private static bool probeEngine (ContainerEngine engine) {
+            foreach (var sock in ComposeService.engineSockets (engine)) {
+                if (ComposeService.canConnect (sock)) {
+                    ComposeService.activeEngine = engine;
+                    ComposeService.activeSocket = sock;
+                    GLib.debug("container engine: %s at %s", ComposeService.engineName(), sock);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool detectEngine () {
+            string? override = ComposeService.overrideSocket ();
+            if (override != null) {
+                if (!ComposeService.canConnect (override)) return false;
+                ComposeService.activeEngine = ComposeService.engineForSocket (override);
+                ComposeService.activeSocket = override;
+                GLib.debug("container engine: %s at %s (override)", ComposeService.engineName(), override);
+                return true;
+            }
+
+            if (ComposeService.preferredEngine == "podman") {
+                return ComposeService.probeEngine (ContainerEngine.PODMAN);
+            }
+            if (ComposeService.preferredEngine == "docker") {
+                return ComposeService.probeEngine (ContainerEngine.DOCKER);
+            }
+
+            // Auto-detect prefers Podman so existing Podman setups keep
+            // working when Docker is installed alongside it.
+            if (ComposeService.probeEngine (ContainerEngine.PODMAN)) return true;
+            return ComposeService.probeEngine (ContainerEngine.DOCKER);
+        }
+
         /*
-         * Makes sure the Podman API is reachable. On a cold boot nothing
-         * runs podman, so this starts the systemd unit when needed. Failed
-         * activation attempts are throttled to once per 30s so a broken
-         * podman can't turn every poll into a unit-start storm.
+         * Makes sure a container engine is reachable. On a cold boot
+         * nothing may be listening, so this starts the matching systemd
+         * user unit when needed. Failed activation attempts are throttled
+         * to once per 30s so a broken engine can't turn every poll into a
+         * unit-start storm.
          */
         public static bool ensureService () {
-            string? sock = ComposeService.socketPath();
-            if (sock == null) return false;
-
-            if (ComposeService.canConnect(sock)) return true;
+            if (ComposeService.detectEngine ()) return true;
 
             int64 now = GLib.get_monotonic_time();
             if (now - ComposeService.lastActivation > 30 * 1000 * 1000) {
-                GLib.debug("podman not reachable, activating podman.service");
+                GLib.debug("container engine not reachable, activating service");
                 ComposeService.startService();
                 for (int i = 0; i < 10; i++) {
-                    if (ComposeService.canConnect(sock)) return true;
+                    if (ComposeService.detectEngine ()) return true;
                     GLib.Thread.usleep(100 * 1000);
                 }
+                ComposeService.resetEngine ();
             }
             return false;
         }
@@ -77,7 +191,7 @@ namespace Logic {
 
             if (!ComposeService.ensureService()) return result;
 
-            string? sock = ComposeService.socketPath();
+            string? sock = ComposeService.activeSocket;
             if (sock == null) return result;
 
             try {
@@ -209,11 +323,11 @@ namespace Logic {
         }
 
         /*
-         * Sends a container lifecycle request to the podman socket and
+         * Sends a container lifecycle request to the engine socket and
          * reports success based on the HTTP status code.
          */
         private static bool containerRequest (string method, string resource) {
-            string? sock = ComposeService.socketPath();
+            string? sock = ComposeService.activeSocket;
             if (sock == null) return false;
             if (!ComposeService.canConnect(sock)) return false;
 
@@ -233,6 +347,7 @@ namespace Logic {
                     response.append(buf[:received]);
                 }
                 socket.close();
+                response.append(new uint8[] { 0 });
 
                 string resp = (string) response.data;
                 int start = resp.index_of(" ") + 1;
@@ -257,7 +372,7 @@ namespace Logic {
          * on any failure.
          */
         private static string? containerInspect (string name) {
-            string? sock = ComposeService.socketPath();
+            string? sock = ComposeService.activeSocket;
             if (sock == null) return null;
             if (!ComposeService.canConnect(sock)) return null;
 
@@ -277,6 +392,7 @@ namespace Logic {
                     response.append(buf[:received]);
                 }
                 socket.close();
+                response.append(new uint8[] { 0 });
 
                 string resp = (string) response.data;
                 int bodyStart = resp.index_of("\r\n\r\n");
@@ -288,16 +404,13 @@ namespace Logic {
         }
 
         /*
-         * GET /containers/{name}/logs?stdout=1&stderr=1&tail=200 and return
-         * the log text, or null on any failure.
-         */
-        /*
-         * GET /containers/{name}/logs and return the log text. The podman
-         * Docker-compatible API returns a multiplexed stream with 8-byte
-         * headers per frame; we strip those and concatenate the payload.
+         * GET /containers/{name}/logs and return the log text. Without a
+         * TTY the Docker-compatible API returns a multiplexed stream with
+         * 8-byte headers per frame; containers with a TTY return a raw
+         * stream. Both shapes are handled here.
          */
         public static string? containerLogs (string name, int tail = 200) {
-            string? sock = ComposeService.socketPath();
+            string? sock = ComposeService.activeSocket;
             if (sock == null) return null;
             if (!ComposeService.canConnect(sock)) return null;
 
@@ -332,43 +445,63 @@ namespace Logic {
                 }
                 if (bodyStart < 0) return null;
 
-                // Parse the multiplexed Docker log stream: each frame has an
-                // 8-byte header (stream type, 3 reserved, 4-byte big-endian
-                // size) followed by the payload.
-                var result = new StringBuilder();
-                int pos = bodyStart;
-                while (pos + 8 <= raw.length) {
-                    uint32 size = ((uint32) raw[pos + 4] << 24)
-                                | ((uint32) raw[pos + 5] << 16)
-                                | ((uint32) raw[pos + 6] << 8)
-                                | ((uint32) raw[pos + 7]);
-                    pos += 8;
-                    if (pos + (int) size > raw.length) size = (uint32) (raw.length - pos);
-                    for (uint32 i = 0; i < size; i++) {
-                        result.append_c((char) raw[pos + (int) i]);
+                // A frame header is a stream type (0-2) followed by three
+                // zero bytes. Containers with a TTY send raw text instead.
+                bool multiplexed = bodyStart + 8 <= raw.length
+                    && raw[bodyStart] <= 2
+                    && raw[bodyStart + 1] == 0
+                    && raw[bodyStart + 2] == 0
+                    && raw[bodyStart + 3] == 0;
+
+                if (multiplexed) {
+                    // Parse the multiplexed Docker log stream: each frame
+                    // has an 8-byte header (stream type, 3 reserved,
+                    // 4-byte big-endian size) followed by the payload.
+                    var result = new StringBuilder();
+                    int pos = bodyStart;
+                    while (pos + 8 <= raw.length) {
+                        uint32 size = ((uint32) raw[pos + 4] << 24)
+                                    | ((uint32) raw[pos + 5] << 16)
+                                    | ((uint32) raw[pos + 6] << 8)
+                                    | ((uint32) raw[pos + 7]);
+                        pos += 8;
+                        if (pos + (int) size > raw.length) size = (uint32) (raw.length - pos);
+                        for (uint32 i = 0; i < size; i++) {
+                            result.append_c((char) raw[pos + (int) i]);
+                        }
+                        pos += (int) size;
+                        if (size == 0) break;
                     }
-                    pos += (int) size;
-                    if (size == 0) break;
+                    if (result.len > 0) return result.str;
                 }
-                // If parsing produced nothing, return raw body as string.
-                if (result.len == 0) {
-                    var fallback = new StringBuilder();
-                    for (int i = bodyStart; i < raw.length; i++) {
-                        fallback.append_c((char) raw[i]);
-                    }
-                    if (fallback.len > 0) return fallback.str;
-                    return null;
+
+                // Raw stream: return the body as-is.
+                var fallback = new StringBuilder();
+                for (int i = bodyStart; i < raw.length; i++) {
+                    fallback.append_c((char) raw[i]);
                 }
-                return result.str;
+                if (fallback.len > 0) return fallback.str;
+                return null;
             } catch (Error e) {
                 return null;
             }
         }
 
         /*
-         * Runs `podman compose up -d` on the host via flatpak-spawn. Used
-         * when the compose file declares services that have no containers.
+         * Runs the compose binary matching the detected engine on the
+         * host via flatpak-spawn. Used when the compose file declares
+         * services that have no containers yet.
          */
+        private static int runCompose (string[] argv) {
+            try {
+                var process = new GLib.Subprocess.newv (argv, (GLib.SubprocessFlags) 0);
+                process.wait (null);
+                return process.get_exit_status ();
+            } catch (Error e) {
+                return -1;
+            }
+        }
+
         public static bool composeUp (string path) {
             string[] composeNames = {
                 "compose.yaml", "compose.yml",
@@ -383,18 +516,31 @@ namespace Logic {
                 }
             }
             if (filePath == null) return false;
+            if (!ComposeService.ensureService ()) return false;
 
-            string[] argv = {
-                "flatpak-spawn", "--host", "podman", "compose",
-                "-f", filePath, "up", "-d"
-            };
-            try {
-                var process = new GLib.Subprocess.newv (argv, (GLib.SubprocessFlags) 0);
-                process.wait (null);
-                return process.get_exit_status () == 0;
-            } catch (Error e) {
+            string cli;
+            string fallbackCli;
+            if (ComposeService.activeEngine == ContainerEngine.PODMAN) {
+                cli = "podman";
+                fallbackCli = "podman-compose";
+            } else if (ComposeService.activeEngine == ContainerEngine.DOCKER) {
+                cli = "docker";
+                fallbackCli = "docker-compose";
+            } else {
                 return false;
             }
+
+            string[] primary = {
+                "flatpak-spawn", "--host", cli, "compose",
+                "-f", filePath, "up", "-d"
+            };
+            string[] fallback = {
+                "flatpak-spawn", "--host", fallbackCli,
+                "-f", filePath, "up", "-d"
+            };
+
+            if (ComposeService.runCompose (primary) == 0) return true;
+            return ComposeService.runCompose (fallback) == 0;
         }
 
         public static bool startContainer (string name) {

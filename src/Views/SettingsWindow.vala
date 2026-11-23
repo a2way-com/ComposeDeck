@@ -14,11 +14,13 @@ namespace Views {
         [GtkChild] private unowned Gtk.Entry appsEntry;
         [GtkChild] private unowned Gtk.Button resetButton;
         [GtkChild] private unowned Adw.ComboRow intervalRow;
+        [GtkChild] private unowned Adw.ComboRow engineRow;
         [GtkChild] private unowned Adw.SwitchRow pinnedRow;
         [GtkChild] private unowned Adw.ComboRow browserRow;
 
         private Logic.State state;
         private int[] intervalValues = { 5, 10, 30, 60 };
+        private string[] engineValues = { "auto", "podman", "docker" };
 
         public SettingsWindow (Gtk.Window? parentWindow) {
             this.state = Logic.Application.getState();
@@ -31,6 +33,8 @@ namespace Views {
                 Logic.ComposeDeck.discoverApps ();
             });
             this.resetButton.clicked.connect (this.onResetClicked);
+
+            this.setupEngineRow ();
 
             this.intervalRow.set_model (new Gtk.StringList (new string[] {
                 "5 seconds", "10 seconds", "30 seconds", "60 seconds"
@@ -64,6 +68,23 @@ namespace Views {
             this.state.saveSettings ();
             this.appsEntry.text = this.state.appsDir;
             Logic.ComposeDeck.discoverApps ();
+        }
+
+        private void setupEngineRow () {
+            this.engineRow.set_model (new Gtk.StringList (new string[] {
+                "Auto-detect", "Podman", "Docker"
+            }));
+            int selected = 0;
+            for (int i = 0; i < this.engineValues.length; i++) {
+                if (this.engineValues[i] == this.state.containerEngine) selected = i;
+            }
+            this.engineRow.set_selected ((uint) selected);
+            this.engineRow.notify["selected"].connect (() => {
+                int index = (int) this.engineRow.get_selected ();
+                if (index >= 0 && index < this.engineValues.length) {
+                    Logic.ComposeDeck.setContainerEngine (this.engineValues[index]);
+                }
+            });
         }
 
         private void setupBrowserRow () {

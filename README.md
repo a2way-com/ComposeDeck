@@ -1,7 +1,7 @@
 # ComposeDeck
 
 ComposeDeck is a GTK4/libadwaita desktop app for managing Docker Compose
-projects running on Podman.
+projects running on Podman or Docker.
 
 It scans a folder for compose projects, shows which services are running, and
 lets you start, stop, and restart individual apps or all of them at once.
@@ -12,19 +12,38 @@ ComposeDeck exists to run container stacks as apps. A Compose stack is usually
 a directory, a compose file, and a command you have to remember; here each
 stack in your apps folder (`~/Apps` by default) becomes an app with its own
 status, services, logs, and start/stop/restart lifecycle. State is read from
-the Podman API, so each app reflects what is actually running.
+the Podman or Docker API, so each app reflects what is actually running.
 
 ## Requirements
 
 - Flatpak, with the Flathub remote available for the GNOME runtime.
-- Podman. ComposeDeck starts the Podman API service on demand.
+- Podman or Docker. ComposeDeck starts the Podman API or the rootless Docker
+  user service on demand. Rootful Docker must already be running.
 - Compose projects in `~/Apps`, or another folder configured in Settings.
 
 If your environment blocks the on-demand service start, enable the socket
 manually:
 
 ```sh
+# Podman
 systemctl --user enable --now podman.socket
+
+# Rootless Docker
+systemctl --user enable --now docker.service
+```
+
+### Container engines
+
+ComposeDeck detects Podman at `$XDG_RUNTIME_DIR/podman/podman.sock` or
+`/run/podman/podman.sock`, and Docker at `$XDG_RUNTIME_DIR/docker.sock`,
+`~/.docker/desktop/docker.sock`, or `/run/docker.sock`. When both are running
+it prefers Podman; **Settings > Container engine** pins one explicitly.
+
+A `unix://` endpoint in `CONTAINER_HOST` or `DOCKER_HOST` takes precedence.
+The Flatpak needs access to a custom path, for example:
+
+```sh
+flatpak override --user --filesystem=/path/to/docker.sock com.a2way.ComposeDeck
 ```
 
 ## Install

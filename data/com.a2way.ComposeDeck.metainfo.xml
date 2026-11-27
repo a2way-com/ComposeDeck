@@ -51,6 +51,18 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.3.0" date="2026-11-27">
+      <description>
+        <p>Docker support, app-mode shortcuts, orphan cleanup, and environment editing.</p>
+        <ul>
+          <li>Docker engine support alongside Podman, with a container engine setting.</li>
+          <li>App-mode shortcuts with a browser picker, a shortcut list in app details, and a shared editor.</li>
+          <li>Detection and removal of orphan containers per app.</li>
+          <li>Editing of each project's .env variables, with comments, alphabetical ordering, masked credentials, and optional container recreation.</li>
+          <li>Resolved compose image names in the service list.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-11-21">
       <description>
         <p>Overview dashboard, settings, shortcuts, and richer service details.</p>

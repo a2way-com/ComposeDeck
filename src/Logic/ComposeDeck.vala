@@ -7,7 +7,7 @@ namespace Logic {
     public class ComposeDeck {
         public const string APP_ID = "com.a2way.ComposeDeck";
         public const string APP_NAME = "ComposeDeck";
-        public const string VERSION = "0.2.0";
+        public const string VERSION = "0.3.0";
         public const string DEVELOPER_NAME = "a2way";
         public const string APPS_SUBDIR = "Apps";
 

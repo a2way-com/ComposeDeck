@@ -4,7 +4,8 @@ ComposeDeck is a GTK4/libadwaita desktop app for managing Docker Compose
 projects running on Podman or Docker.
 
 It scans a folder for compose projects, shows which services are running, and
-lets you start, stop, and restart individual apps or all of them at once.
+lets you start, stop, and restart individual apps or all of them at once. Each
+project's `.env` file can be viewed and edited from the app.
 
 ## Why this exists
 
@@ -46,6 +47,19 @@ The Flatpak needs access to a custom path, for example:
 flatpak override --user --filesystem=/path/to/docker.sock com.a2way.ComposeDeck
 ```
 
+## Environment variables
+
+A project can keep its settings in a `.env` file next to its compose file. The
+Environment row on an app's page edits that file: change values, add or remove
+variables, and save. Values whose names look like credentials (`KEY`, `TOKEN`,
+`SECRET`, `PASSWORD`, and so on) are masked until revealed.
+
+Saving can recreate the project's containers through compose, so the new
+values take effect. Variables are listed and saved alphabetically; a comment
+directly above a variable in the file is shown above it in the editor.
+ComposeDeck keeps the comments and quoting, and writes the file with `0600`
+permissions.
+
 ## Install
 
 ```sh
@@ -66,7 +80,8 @@ flatpak uninstall com.a2way.ComposeDeck
 
 The current Pages repository contains x86_64 builds. The Flatpak has access
 to the home directory because it needs to read compose projects and
-`.ComposeDeck/settings.jsonc`. It does not modify your projects.
+`.ComposeDeck/settings.jsonc`. It writes only the `.env` files you edit
+through the app and its own settings file.
 
 ## Build
 

@@ -4,7 +4,7 @@ Conventions for contributors and AI agents working on ComposeDeck. User-facing d
 
 ## Project
 
-ComposeDeck is a GTK4/libadwaita app for managing Docker Compose projects on Podman or Docker. It discovers compose projects in a configurable folder (default `~/Apps`), reads service state from the engine's Docker-compatible API, and provides start/stop/restart, logs, ports, orphan cleanup, and web-app shortcuts.
+ComposeDeck is a GTK4/libadwaita app for managing Docker Compose projects on Podman or Docker. It discovers compose projects in a configurable folder (default `~/Apps`), reads service state from the engine's Docker-compatible API, and provides start/stop/restart, logs, ports, orphan cleanup, web-app shortcuts, and per-project `.env` editing.
 
 ## Architecture
 
@@ -13,7 +13,7 @@ ComposeDeck is a GTK4/libadwaita app for managing Docker Compose projects on Pod
 - `src/Logic/ComposeDeck.vala` — business logic and orchestration. Scans the apps folder, parses compose files, schedules refreshes, and runs app actions. It mutates `State`, then emits `State.changed`.
 - `src/Logic/ComposeService.vala` — container-engine integration. Detects and activates Podman or Docker, then performs the Docker-compatible socket calls. It contains no business orchestration.
 - `src/Logic/State.vala` — shared state and settings: `apps`, `selectedApp` (`null` means Overview), the computed `overviewSelected`, `actionInProgress`, `actionError`/`actionSuccess`, `engineReachable`, `refreshInterval`, `pinnedApps`, window size, and the `changed` signal.
-- `src/Logic/ContainerEngine.vala`, `ComposeApp.vala`, `AppService.vala`, `AppPort.vala`, `AppShortcut.vala`, and `WebAppBrowser.vala` — engine, model, and helper types.
+- `src/Logic/ContainerEngine.vala`, `ComposeApp.vala`, `AppService.vala`, `AppPort.vala`, `AppShortcut.vala`, `EnvDocument.vala`, and `WebAppBrowser.vala` — engine, model, and helper types. `EnvDocument` parses and writes a project's `.env` file, keeping comments, quoting, and untouched lines; entries are listed and saved alphabetically, with a comment block moving with the entry below it, and the editor shows that comment above the entry.
 - `src/Views/*.vala` — GTK controllers. They own template bindings, signals, and rendering from `State`. They contain no business logic and no polling timers.
 
 `ComposeDeck.start()` installs a one-second timeout that rediscovers apps once the configured `State.refreshInterval` (default 10 seconds) has elapsed. Views re-render when `State` emits `changed`; do not add polling timers to views.
@@ -32,6 +32,7 @@ ComposeDeck is a GTK4/libadwaita app for managing Docker Compose projects on Pod
 - Do not repeat the same title across both headers.
 - Keep header and menu widgets flat and minimally padded.
 - Render running/stopped indicators as markup (a coloured `●`), using `set_markup` or `use-markup`.
+- The details page's Environment row opens `EnvironmentEditor`, which edits the project's `.env`. Saving can recreate the containers through compose so the new values apply.
 
 ## Build
 

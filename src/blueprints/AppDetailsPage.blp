@@ -52,6 +52,23 @@ template $AppDetailsPage: Gtk.Box {
       }
     }
 
+    Adw.ActionRow envRow {
+      title: "Environment";
+      activatable: true;
+
+      Gtk.Label envSummary {
+        css-classes: ["dim-label"];
+        valign: center;
+        ellipsize: end;
+      }
+
+      Gtk.Image {
+        icon-name: "go-next-symbolic";
+        valign: center;
+        css-classes: ["dim-label"];
+      }
+    }
+
     Adw.ActionRow projectRow {
       title: "Project";
       visible: false;

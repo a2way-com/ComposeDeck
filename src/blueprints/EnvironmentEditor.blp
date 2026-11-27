@@ -1,0 +1,100 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $EnvironmentEditor: Adw.Dialog {
+  content-width: 720;
+  content-height: 620;
+
+  child: Adw.ToastOverlay toastOverlay {
+    child: Adw.ToolbarView {
+      [top]
+      Adw.HeaderBar {
+        [start]
+        Gtk.Button cancelButton {
+          label: "Cancel";
+        }
+
+        [end]
+        Gtk.Button saveButton {
+          label: "Save";
+          css-classes: ["suggested-action"];
+        }
+
+        title-widget: Adw.WindowTitle windowTitle {
+          title: "Environment";
+        };
+      }
+
+      content: Gtk.ScrolledWindow {
+        hexpand: true;
+        vexpand: true;
+        hscrollbar-policy: never;
+
+        child: Gtk.Box {
+          orientation: vertical;
+          spacing: 12;
+          margin-top: 18;
+          margin-bottom: 18;
+          margin-start: 18;
+          margin-end: 18;
+
+          Gtk.Label {
+            label: "Variables";
+            xalign: 0;
+            css-classes: ["heading"];
+          }
+
+          Gtk.Label {
+            label: "Values come from .env in the app folder and reach the containers when they are recreated.";
+            xalign: 0;
+            wrap: true;
+            css-classes: ["caption", "dim-label"];
+          }
+
+          Gtk.Label fileLabel {
+            xalign: 0;
+            selectable: true;
+            ellipsize: middle;
+            css-classes: ["caption", "dim-label", "monospace"];
+          }
+
+          Gtk.ListBox variableList {
+            selection-mode: none;
+            css-classes: ["boxed-list"];
+          }
+
+          Gtk.Label emptyLabel {
+            label: "No variables yet.";
+            xalign: 0;
+            css-classes: ["dim-label"];
+          }
+
+          Gtk.Button addButton {
+            halign: start;
+            css-classes: ["flat"];
+            child: Gtk.Box {
+              orientation: horizontal;
+              spacing: 6;
+              Gtk.Image {
+                icon-name: "list-add-symbolic";
+                pixel-size: 16;
+              }
+              Gtk.Label {
+                label: "Add variable";
+              }
+            };
+          }
+
+          Gtk.Separator {
+            margin-top: 6;
+          }
+
+          Gtk.CheckButton applyCheck {
+            label: "Recreate containers to apply changes";
+            visible: false;
+          }
+        };
+      };
+    };
+  };
+}

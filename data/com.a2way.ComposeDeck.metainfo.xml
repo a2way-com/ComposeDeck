@@ -19,6 +19,7 @@
       <li>Overview of all compose projects with running, stopped, and partial states</li>
       <li>Per-project service list with health, ports, and logs</li>
       <li>Start, stop, and restart controls for single services or whole projects</li>
+      <li>Editing of each project's .env variables, with credential-like values masked</li>
       <li>Search, filters, and pinned projects</li>
     </ul>
     <p>ComposeDeck talks directly to the Podman or Docker API socket and does not require a separate Compose binary.</p>

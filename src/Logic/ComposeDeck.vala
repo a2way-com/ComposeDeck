@@ -183,6 +183,8 @@ namespace Logic {
                         app.services = (owned) ordered;
                     }
 
+                    ComposeDeck.refreshAppEnvironment (app);
+
                     apps.append(app);
                 }
             } catch (Error e) {
@@ -197,24 +199,31 @@ namespace Logic {
         }
 
         /*
+         * The compose file ComposeDeck uses for an app folder, or null when
+         * the folder has none.
+         */
+        private static string? composeFilePath (string path) {
+            string[] composeNames = {
+                "compose.yaml", "compose.yml",
+                "docker-compose.yaml", "docker-compose.yml"
+            };
+            foreach (var composeName in composeNames) {
+                string candidate = path + "/" + composeName;
+                if (File.new_for_path(candidate).query_exists ()) {
+                    return candidate;
+                }
+            }
+            return null;
+        }
+
+        /*
          * Reads the top-level "name:" from the compose file, falling back to
          * the folder name. Podman and Docker label containers with this
          * project name.
          */
         private static string composeProjectName (string path) {
             string fallback = GLib.Path.get_basename(path).down();
-            string[] composeNames = {
-                "compose.yaml", "compose.yml",
-                "docker-compose.yaml", "docker-compose.yml"
-            };
-            string? filePath = null;
-            foreach (var composeName in composeNames) {
-                string candidate = path + "/" + composeName;
-                if (File.new_for_path(candidate).query_exists ()) {
-                    filePath = candidate;
-                    break;
-                }
-            }
+            string? filePath = ComposeDeck.composeFilePath (path);
             if (filePath == null) return fallback;
 
             try {
@@ -253,18 +262,7 @@ namespace Logic {
          */
         private static GLib.List<string> composeServiceOrder (string path) {
             var order = new GLib.List<string> ();
-            string[] composeNames = {
-                "compose.yaml", "compose.yml",
-                "docker-compose.yaml", "docker-compose.yml"
-            };
-            string? filePath = null;
-            foreach (var composeName in composeNames) {
-                string candidate = path + "/" + composeName;
-                if (File.new_for_path(candidate).query_exists ()) {
-                    filePath = candidate;
-                    break;
-                }
-            }
+            string? filePath = ComposeDeck.composeFilePath (path);
             if (filePath == null) return order;
 
             try {
@@ -302,24 +300,66 @@ namespace Logic {
         }
 
         /*
+         * Replaces ${NAME} and ${NAME:-default} references in a compose
+         * value with entries from the app's .env file.
+         */
+        private static string resolveEnvReferences (string value, Logic.EnvDocument document) {
+            var result = new StringBuilder ();
+            int i = 0;
+            while (i < value.length) {
+                if (value[i] != '$' || i + 1 >= value.length) {
+                    result.append_c (value[i]);
+                    i++;
+                    continue;
+                }
+                if (value[i + 1] == '$') {
+                    result.append_c ('$');
+                    i += 2;
+                    continue;
+                }
+                if (value[i + 1] != '{') {
+                    result.append_c (value[i]);
+                    i++;
+                    continue;
+                }
+                int end = value.index_of ("}", i + 2);
+                if (end < 0) {
+                    result.append (value.substring (i));
+                    break;
+                }
+
+                string inner = value.substring (i + 2, end - i - 2);
+                string name = inner;
+                string fallback = "";
+                int separator = inner.index_of (":-");
+                if (separator >= 0) {
+                    name = inner.substring (0, separator);
+                    fallback = inner.substring (separator + 2);
+                }
+
+                var entry = document.entryFor (name);
+                if (entry != null) {
+                    result.append (entry.value);
+                } else {
+                    result.append (fallback);
+                }
+                i = end + 1;
+            }
+            return result.str;
+        }
+
+        /*
          * Returns services declared under the top-level "services:" key,
          * with their image. They represent containers that do not exist yet.
          */
         private static GLib.List<AppService> composeDeclaredServices (string path) {
             var result = new GLib.List<AppService> ();
-            string[] composeNames = {
-                "compose.yaml", "compose.yml",
-                "docker-compose.yaml", "docker-compose.yml"
-            };
-            string? filePath = null;
-            foreach (var composeName in composeNames) {
-                string candidate = path + "/" + composeName;
-                if (File.new_for_path(candidate).query_exists ()) {
-                    filePath = candidate;
-                    break;
-                }
-            }
+            string? filePath = ComposeDeck.composeFilePath (path);
             if (filePath == null) return result;
+
+            string? envError;
+            var envDocument = Logic.EnvDocument.load (
+                Logic.EnvDocument.envPath (path), out envError);
 
             try {
                 uint8[] raw;
@@ -352,7 +392,8 @@ namespace Logic {
                         current.statusText = "Not created";
                         result.append (current);
                     } else if (current != null && indent > serviceIndent && trimmed.has_prefix ("image:")) {
-                        current.image = trimmed.substring (6).strip ();
+                        current.image = ComposeDeck.resolveEnvReferences (
+                            trimmed.substring (6).strip (), envDocument);
                     }
                 }
             } catch (Error e) {
@@ -962,6 +1003,71 @@ namespace Logic {
                 }
                 string? success = changed ? "Restarted %s".printf (app.name) : null;
                 ComposeDeck.finishAppAction (startedAt, ComposeDeck.formatFailures ("restart", failed), success);
+                return 0;
+            }, false);
+        }
+
+        /*
+         * Environment
+         */
+
+        /*
+         * Records whether the app has a .env file and how many variables it
+         * declares, so the details page can summarize it without reading
+         * the file on every render.
+         */
+        public static void refreshAppEnvironment (ComposeApp app) {
+            string path = Logic.EnvDocument.envPath (app.path);
+            app.hasEnvFile = File.new_for_path (path).query_exists ();
+
+            string? error;
+            var document = Logic.EnvDocument.load (path, out error);
+            app.envVarCount = document.entryCount ();
+        }
+
+        /*
+         * Writes an edited .env document back to the app folder and refreshes
+         * the cached summary. Errors are surfaced through State; callers
+         * decide whether to report success or recreate the containers.
+         */
+        public static bool saveEnvDocument (ComposeApp app, Logic.EnvDocument document) {
+            string path = Logic.EnvDocument.envPath (app.path);
+            string? error;
+            if (!document.save (path, out error)) {
+                ComposeDeck.state.actionError = error != null
+                    ? "Could not save .env: %s".printf (error)
+                    : "Could not save .env.";
+                ComposeDeck.state.changed ();
+                return false;
+            }
+
+            foreach (var candidate in ComposeDeck.state.apps) {
+                if (candidate.path == app.path) {
+                    ComposeDeck.refreshAppEnvironment (candidate);
+                }
+            }
+            ComposeDeck.state.changed ();
+            return true;
+        }
+
+        /*
+         * Recreates the app's containers through compose so edited .env
+         * values reach the running services.
+         */
+        public static void recreateApp (ComposeApp app) {
+            if (ComposeDeck.state.actionInProgress) return;
+            ComposeDeck.beginAppAction();
+
+            int64 startedAt = GLib.get_monotonic_time();
+            GLib.Thread.create<int> (() => {
+                bool recreated = ComposeService.composeUp (app.path);
+                string? error = recreated
+                    ? null
+                    : "Failed to recreate %s".printf (app.name);
+                string? success = recreated
+                    ? "Recreated %s".printf (app.name)
+                    : null;
+                ComposeDeck.finishAppAction (startedAt, error, success);
                 return 0;
             }, false);
         }

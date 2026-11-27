@@ -1,0 +1,57 @@
+using Gtk 4.0;
+
+template $EnvVariableRow: Gtk.ListBoxRow {
+  activatable: false;
+  selectable: false;
+
+  Gtk.Box {
+    orientation: vertical;
+    spacing: 3;
+    margin-top: 6;
+    margin-bottom: 6;
+    margin-start: 12;
+    margin-end: 6;
+
+    Gtk.Label commentLabel {
+      xalign: 0;
+      wrap: true;
+      visible: false;
+      css-classes: ["caption", "dim-label"];
+    }
+
+    Gtk.Box {
+      orientation: horizontal;
+      spacing: 6;
+
+      Gtk.Entry keyEntry {
+        placeholder-text: "NAME";
+        width-chars: 32;
+        hexpand: false;
+        valign: center;
+        css-classes: ["monospace"];
+      }
+
+      Gtk.Entry valueEntry {
+        placeholder-text: "Value";
+        width-chars: 24;
+        hexpand: true;
+        valign: center;
+      }
+
+      Gtk.ToggleButton revealButton {
+        icon-name: "view-reveal-symbolic";
+        valign: center;
+        css-classes: ["flat"];
+        tooltip-text: "Show value";
+        visible: false;
+      }
+
+      Gtk.Button removeButton {
+        icon-name: "user-trash-symbolic";
+        valign: center;
+        css-classes: ["flat"];
+        tooltip-text: "Remove variable";
+      }
+    }
+  }
+}

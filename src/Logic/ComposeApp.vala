@@ -13,6 +13,8 @@ namespace Logic {
         public int runningCount { get; set; }
         public int serviceCount { get; set; }
         public int orphanCount { get; set; }
+        public bool hasEnvFile { get; set; }
+        public int envVarCount { get; set; }
         public GLib.List<AppService> services;
 
         public ComposeApp (string name, string path, bool running) {
@@ -23,6 +25,8 @@ namespace Logic {
             this.runningCount = 0;
             this.serviceCount = 0;
             this.orphanCount = 0;
+            this.hasEnvFile = false;
+            this.envVarCount = 0;
             this.services = new GLib.List<AppService>();
         }
     }

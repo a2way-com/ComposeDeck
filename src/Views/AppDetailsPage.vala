@@ -14,6 +14,8 @@ namespace Views {
     [CCode (cname = "AppDetailsPage")]
     public class AppDetailsPage : Gtk.Box {
         [GtkChild] private unowned Adw.ActionRow pathRow;
+        [GtkChild] private unowned Adw.ActionRow envRow;
+        [GtkChild] private unowned Gtk.Label envSummary;
         [GtkChild] private unowned Adw.ActionRow projectRow;
         [GtkChild] private unowned Adw.ActionRow statusRow;
         [GtkChild] private unowned Gtk.Label refreshedLabel;
@@ -41,6 +43,7 @@ namespace Views {
             this.openButton.clicked.connect(this.onOpenDirClicked);
             this.pathCopyButton.clicked.connect(this.onPathCopyClicked);
             this.composeButton.clicked.connect(this.onComposeClicked);
+            this.envRow.activated.connect(this.onEnvironmentClicked);
             this.startButton.clicked.connect(this.onStartAppClicked);
             this.stopButton.clicked.connect(this.onStopAppClicked);
             this.restartButton.clicked.connect(this.onRestartAppClicked);
@@ -59,6 +62,7 @@ namespace Views {
             this.set_visible(true);
 
             pathRow.set_subtitle(selected.path);
+            this.renderEnvironment (selected);
 
             bool showProject = selected.projectName != "" && selected.projectName != selected.name;
             projectRow.set_visible (showProject);
@@ -125,6 +129,22 @@ namespace Views {
                 this.servicesBox.append(section);
                 this.serviceGroups.append(section);
             }
+        }
+
+        /*
+         * Summarizes the app's .env file next to the Environment row.
+         */
+        private void renderEnvironment (Logic.ComposeApp app) {
+            string summary;
+            if (!app.hasEnvFile) {
+                summary = "No .env file";
+            } else if (app.envVarCount == 0) {
+                summary = "Empty";
+            } else {
+                summary = "%d variable%s".printf (
+                    app.envVarCount, app.envVarCount == 1 ? "" : "s");
+            }
+            this.envSummary.set_text (summary);
         }
 
         /*
@@ -221,6 +241,13 @@ namespace Views {
             var display = Gdk.Display.get_default ();
             var clipboard = display.get_clipboard ();
             clipboard.set_text (selected.path);
+        }
+
+        private void onEnvironmentClicked () {
+            var selected = this.state.selectedApp;
+            if (selected == null) return;
+            var dialog = new Views.EnvironmentEditor (selected);
+            dialog.present (this.get_toplevel_window ());
         }
 
         private Gtk.Window? get_toplevel_window () {
